@@ -206,19 +206,19 @@ export function buildGameBoy() {
 
   // separate "SELECT" and "START" labels — each directly under its pill
   const labelSelect = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.10, 0.022),
+    new THREE.PlaneGeometry(0.13, 0.030),
     makeSmallLabel('SELECT'),
   );
   labelSelect.rotation.x = -Math.PI / 2;
-  labelSelect.position.set(pillSelectX, frontY, ssZ + 0.05);
+  labelSelect.position.set(pillSelectX, frontY, ssZ + 0.055);
   gb.add(labelSelect);
 
   const labelStart = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.10, 0.022),
+    new THREE.PlaneGeometry(0.13, 0.030),
     makeSmallLabel('START'),
   );
   labelStart.rotation.x = -Math.PI / 2;
-  labelStart.position.set(pillStartX, frontY, ssZ + 0.05);
+  labelStart.position.set(pillStartX, frontY, ssZ + 0.055);
   gb.add(labelStart);
 
   // ============================================================
