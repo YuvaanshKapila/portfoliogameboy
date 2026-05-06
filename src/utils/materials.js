@@ -140,6 +140,111 @@ export function makeWalnutMaterial() {
   });
 }
 
+// ---------------------------------------------------------------- cartridge screen
+/**
+ * The LCD content for an inserted cartridge — title at the top, then
+ * a list of bullet items below. Drawn on a bright LCD background and
+ * applied as an emissive material so the screen "glows" while the
+ * cart is inserted.
+ */
+const CART_CONTENT = {
+  'PROJECTS': [
+    '> YUVAANSHFLIX',
+    '> BEATPACK',
+    '> CODEBLAST',
+    '> GAMERBRAIN',
+    '> THIS PORTFOLIO',
+  ],
+  'ABOUT ME': [
+    'YUVAANSH KAPILA',
+    'NORTH BAY, ON',
+    '',
+    'DEV / MUSIC / GAMER',
+    '',
+    'CODES AT 3AM',
+    'DROPS BEATS NIGHTLY',
+  ],
+  'HOBBIES': [
+    '> RETRO GAMING',
+    '> MUSIC PRODUCTION',
+    '> LO-FI BEATS',
+    '> SPEEDRUNS',
+    '> POKEMON',
+  ],
+  'EXPERIENCE': [
+    '> WEB DEV',
+    '> FULL-STACK',
+    '> THREE.JS / WEBGL',
+    '> AUDIO PRODUCTION',
+    '> SHIPPED 7+ PROJECTS',
+  ],
+};
+
+export function makeCartridgeScreenMaterial(title) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 1024;
+  const ctx = c.getContext('2d');
+
+  // bright LCD background
+  const bg = ctx.createLinearGradient(0, 0, 0, 1024);
+  bg.addColorStop(0, '#fbfaf3');
+  bg.addColorStop(1, '#e8e6da');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Title — chunky display font with subtle drop-shadow
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `400 110px ${F_DISPLAY}`;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillText(title, 514, 124);
+  ctx.fillStyle = '#1d1d1d';
+  ctx.fillText(title, 512, 120);
+
+  // Underline
+  ctx.fillStyle = '#1d1d1d';
+  ctx.fillRect(140, 200, 744, 4);
+
+  // Content list
+  ctx.font = `600 60px ${F_LABEL}`;
+  ctx.fillStyle = '#222222';
+  ctx.textAlign = 'left';
+  const items = CART_CONTENT[title] || ['NO DATA'];
+  let y = 290;
+  for (const line of items) {
+    ctx.fillText(line, 110, y);
+    y += 100;
+  }
+
+  // pixel grid for that LCD feel
+  ctx.fillStyle = 'rgba(40, 45, 60, 0.08)';
+  for (let yy = 0; yy < 1024; yy += 5) ctx.fillRect(0, yy, 1024, 1);
+  for (let xx = 0; xx < 1024; xx += 5) ctx.fillRect(xx, 0, 1, 1024);
+
+  // soft vignette
+  const v = ctx.createRadialGradient(512, 512, 200, 512, 512, 720);
+  v.addColorStop(0, 'rgba(0,0,0,0)');
+  v.addColorStop(1, 'rgba(0,0,0,0.18)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 16;
+
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    emissiveMap: tex,
+    emissive: new THREE.Color(0xfff0d0),
+    emissiveIntensity: 0.55,
+    roughness: 0.25,
+    metalness: 0.0,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+}
+
 // ---------------------------------------------------------------- screen — boot
 /**
  * Classic GBC boot screen — white panel with the rainbow GAME BOY

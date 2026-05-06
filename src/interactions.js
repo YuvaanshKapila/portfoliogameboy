@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DragControls } from 'three/addons/controls/DragControls.js';
+import { makeCartridgeScreenMaterial } from './utils/materials.js';
 
 /**
  * Wires up all input:
@@ -60,8 +61,10 @@ export function setupInteractions({
     orbit.enabled = false;
     e.object.userData.dragging = true;
     // Picking up a snapped cart releases it so the user can drag it
-    // away. Otherwise the snapped cart would stay locked under the
-    // mouse and block other interactions.
+    // away — and clears the cart-screen so the LCD reverts.
+    if (e.object.userData.snapped) {
+      hideCartContent();
+    }
     e.object.userData.snapped = false;
     e.object.userData.physicsActive = false;
     e.object.rotation.set(
@@ -120,6 +123,8 @@ export function setupInteractions({
     if (dist < SNAP_RADIUS && inSlotZone) {
       e.object.userData.snapped = true;
       e.object.userData.physicsActive = false;
+      // Show this cart's content on the LCD
+      showCartContent(e.object);
     } else {
       e.object.userData.snapped = false;
       // initialize velocity & enable gravity so the cart falls
@@ -152,6 +157,30 @@ export function setupInteractions({
   });
 
   const lcdOffMaterial = lcd ? lcd.material : null;
+
+  // ---------------- per-cart LCD content (shown when snapped) ----------------
+  // The material BEFORE a cart was inserted is captured here so we
+  // can revert correctly (could be the off material, the boot
+  // material, or a different cart's content).
+  let lcdPreCartMaterial = null;
+
+  function showCartContent(cart) {
+    if (!lcd) return;
+    if (!lcdPreCartMaterial) lcdPreCartMaterial = lcd.material;
+    const title = cart.userData.title || 'CART';
+    if (!cart.userData.contentMaterial) {
+      cart.userData.contentMaterial = makeCartridgeScreenMaterial(title);
+    }
+    lcd.material = cart.userData.contentMaterial;
+  }
+
+  function hideCartContent() {
+    if (!lcd) return;
+    if (lcdPreCartMaterial) {
+      lcd.material = lcdPreCartMaterial;
+      lcdPreCartMaterial = null;
+    }
+  }
 
   // Build the boot-screen canvas + texture once, reuse forever
   const bootCanvas = document.createElement('canvas');
