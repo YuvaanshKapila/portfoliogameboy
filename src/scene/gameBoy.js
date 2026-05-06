@@ -4,26 +4,22 @@ import {
   matBodyKiwi, matBezel, matButtonGrey, matRubberMatte,
   makeScreenMaterial,
   makeGameBoyColorLogoMaterial,
-  makeNintendoWordmarkMaterial,
   makePowerIndicatorMaterial,
-  makeCommIndicatorMaterial,
-  makeSelectStartLabelMaterial,
   makeButtonLetterMaterial,
   makeSpeakerGridMaterial,
+  makeSmallLabel,
 } from '../utils/materials.js';
 
 /**
- * Atomic Purple Game Boy Color, with Yuvaansh's name etched into the
- * body in place of the Nintendo wordmark.
+ * Atomic Purple Game Boy Color.
  *
  * Conventions:
  *   +X right, +Y up, +Z toward camera.
- *   Device lies flat on the desk. Front face faces +Y.
+ *   Device lies flat. Front face faces +Y.
  *   -Z = top edge, +Z = bottom edge.
  *
- * Y-layer separation (each plane lives at a distinct height + every
- * decal material uses polygonOffset so opaque/transparent layers stop
- * z-fighting from any camera angle):
+ * Y-layer separation + polygonOffset on every decal prevents flicker
+ * across all camera angles:
  *
  *   body top     = D
  *   bezel top    = D + 0.001
@@ -42,7 +38,7 @@ export function buildGameBoy() {
   const halfL = L / 2;
 
   // ============================================================
-  // BODY  —  high-poly rounded box for smooth corners
+  // BODY
   // ============================================================
   const body = new THREE.Mesh(
     new RoundedBoxGeometry(W, D, L, 14, 0.04),
@@ -54,7 +50,7 @@ export function buildGameBoy() {
   gb.add(body);
 
   // ============================================================
-  // BEZEL
+  // BEZEL  +  LCD  (LCD enlarged to match reference proportions)
   // ============================================================
   const bezelW = 0.62;
   const bezelL = 0.70;
@@ -74,14 +70,14 @@ export function buildGameBoy() {
   bezel.receiveShadow = true;
   gb.add(bezel);
 
-  // ---------- LCD ----------
-  const lcdSize = 0.42;
+  // LCD — 0.50 × 0.50 (was 0.42), centered horizontally, slightly upper
+  const lcdSize = 0.50;
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(lcdSize, lcdSize),
     makeScreenMaterial(),
   );
   screen.rotation.x = -Math.PI / 2;
-  screen.position.set(0, lcdY, bezelZ - 0.08);
+  screen.position.set(0, lcdY, bezelZ - 0.06);
   gb.add(screen);
 
   // ---------- POWER indicator (left of bezel) ----------
@@ -93,35 +89,19 @@ export function buildGameBoy() {
   powerInd.position.set(-0.255, decalY, bezelZ - 0.18);
   gb.add(powerInd);
 
-  // ---------- "GAME BOY COLOR" wordmark ----------
+  // ---------- "GAME BOY COLOR" wordmark (centered below LCD) ----------
   const gbcLogo = new THREE.Mesh(
     new THREE.PlaneGeometry(0.55, 0.10),
     makeGameBoyColorLogoMaterial(),
   );
   gbcLogo.rotation.x = -Math.PI / 2;
-  gbcLogo.position.set(0, decalY, bezelZ + 0.26);
+  gbcLogo.position.set(0, decalY, bezelZ + 0.27);
   gb.add(gbcLogo);
 
-  // ---------- "▲ COMM" silkscreen ----------
-  const commLabel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.20, 0.055),
-    makeCommIndicatorMaterial(),
-  );
-  commLabel.rotation.x = -Math.PI / 2;
-  commLabel.position.set(-0.18, frontY, -halfL + 0.06);
-  gb.add(commLabel);
-
-  // ---------- "Yuvaansh" engraved wordmark ----------
-  const yuvaansh = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.32, 0.05),
-    makeNintendoWordmarkMaterial('Yuvaansh'),
-  );
-  yuvaansh.rotation.x = -Math.PI / 2;
-  yuvaansh.position.set(0, frontY, bezelZ + bezelL / 2 + 0.06);
-  gb.add(yuvaansh);
+  // (NOTE: COMM mark removed per request, Yuvaansh wordmark removed per request)
 
   // ============================================================
-  // D-PAD  —  higher-poly rounded box arms, lots of corner segs
+  // D-PAD
   // ============================================================
   const dpadArmH = 0.022;
   const dpadGroup = new THREE.Group();
@@ -182,7 +162,7 @@ export function buildGameBoy() {
   gb.add(abGroup);
 
   // ============================================================
-  // SELECT / START — centered horizontally
+  // SELECT / START — individual labels under each pill
   // ============================================================
   function makePill() {
     const cap = new THREE.Mesh(
@@ -193,25 +173,36 @@ export function buildGameBoy() {
     cap.castShadow = true;
     return cap;
   }
-  const ssGroup = new THREE.Group();
+  const pillSelectX = -0.07;
+  const pillStartX  = +0.07;
+  const ssZ = 0.50;
+
   const sel = makePill();
   const sta = makePill();
-  sel.position.set(-0.07, frontY + 0.012, 0);
-  sta.position.set(+0.07, frontY + 0.012, 0);
-  ssGroup.add(sel); ssGroup.add(sta);
-  ssGroup.position.set(0, 0, 0.50);
-  gb.add(ssGroup);
+  sel.position.set(pillSelectX, frontY + 0.012, ssZ);
+  sta.position.set(pillStartX,  frontY + 0.012, ssZ);
+  gb.add(sel);
+  gb.add(sta);
 
-  const ssLabel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.30, 0.025),
-    makeSelectStartLabelMaterial(),
+  // separate "SELECT" and "START" labels — each directly under its pill
+  const labelSelect = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.10, 0.022),
+    makeSmallLabel('SELECT'),
   );
-  ssLabel.rotation.x = -Math.PI / 2;
-  ssLabel.position.set(0, frontY, 0.555);
-  gb.add(ssLabel);
+  labelSelect.rotation.x = -Math.PI / 2;
+  labelSelect.position.set(pillSelectX, frontY, ssZ + 0.05);
+  gb.add(labelSelect);
+
+  const labelStart = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.10, 0.022),
+    makeSmallLabel('START'),
+  );
+  labelStart.rotation.x = -Math.PI / 2;
+  labelStart.position.set(pillStartX, frontY, ssZ + 0.05);
+  gb.add(labelStart);
 
   // ============================================================
-  // SPEAKER (square area, sparse dot grid)
+  // SPEAKER (small, bottom-right)
   // ============================================================
   const speaker = new THREE.Mesh(
     new THREE.PlaneGeometry(0.18, 0.18),
@@ -222,48 +213,71 @@ export function buildGameBoy() {
   gb.add(speaker);
 
   // ============================================================
-  // SIDE / EDGE DETAILS
-  // (no cart slot rectangle — kept the top edge clean per request)
+  // SIDE PORTS / HOLES
+  // (no protruding volume knob — just flush dark recesses indicating
+  //  where the real ports/wheels sit)
   // ============================================================
 
-  // Volume wheel — LEFT side edge
-  const volWheel = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.026, 0.026, 0.16, 64),
-    new THREE.MeshStandardMaterial({ color: 0x2a2722, roughness: 0.55, metalness: 0.4 }),
-  );
-  volWheel.rotation.z = Math.PI / 2;
-  volWheel.position.set(-halfW + 0.005, D / 2, -0.30);
-  gb.add(volWheel);
+  const portMat = new THREE.MeshStandardMaterial({
+    color: 0x0a0a0a, roughness: 0.85, metalness: 0.0,
+  });
+  const wheelMat = new THREE.MeshStandardMaterial({
+    color: 0x14110d, roughness: 0.6, metalness: 0.3,
+  });
 
-  // ridges around the volume wheel
-  const ridgeMat = new THREE.MeshStandardMaterial({ color: 0x14110d, roughness: 0.85 });
-  for (let i = 0; i < 24; i++) {
-    const ang = (i / 24) * Math.PI * 2;
-    const r = 0.027;
+  // Left edge: power switch slot (small flush recess)
+  const powerSlot = new THREE.Mesh(
+    new THREE.BoxGeometry(0.005, 0.025, 0.07),
+    portMat,
+  );
+  powerSlot.position.set(-halfW + 0.003, D - 0.04, -0.40);
+  gb.add(powerSlot);
+
+  // Left edge: link cable port (small flush rectangle)
+  const linkPort = new THREE.Mesh(
+    new THREE.BoxGeometry(0.005, 0.04, 0.06),
+    portMat,
+  );
+  linkPort.position.set(-halfW + 0.003, D / 2, -0.10);
+  gb.add(linkPort);
+
+  // Right edge: volume wheel cutout (small flush slot with ridges)
+  const volSlot = new THREE.Mesh(
+    new THREE.BoxGeometry(0.012, 0.05, 0.10),
+    wheelMat,
+  );
+  volSlot.position.set(halfW - 0.005, D / 2, -0.40);
+  gb.add(volSlot);
+  // ridges to suggest a wheel
+  for (let i = 0; i < 6; i++) {
     const ridge = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.005, 0.003),
-      ridgeMat,
+      new THREE.BoxGeometry(0.006, 0.035, 0.005),
+      new THREE.MeshStandardMaterial({ color: 0x2a2722, roughness: 0.6 }),
     );
-    ridge.position.set(
-      -halfW + 0.005,
-      D / 2 + Math.sin(ang) * r,
-      -0.30 + Math.cos(ang) * r,
-    );
-    ridge.rotation.x = ang;
+    ridge.position.set(halfW - 0.001, D / 2, -0.43 + i * 0.012);
     gb.add(ridge);
   }
 
-  // Headphone jack — small dark hole on bottom edge
+  // Bottom edge: headphone jack (small dark hole)
   const headphoneJack = new THREE.Mesh(
     new THREE.CylinderGeometry(0.022, 0.022, 0.05, 48),
-    matBezel,
+    portMat,
   );
   headphoneJack.rotation.x = Math.PI / 2;
   headphoneJack.position.set(0.18, D / 2, halfL - 0.02);
   gb.add(headphoneJack);
 
-  // Subtle case-half seam line — a slim dark band running around the
-  // perimeter at midline, faking the join between front and back shells.
+  // Bottom edge: external power port (small flush rectangle)
+  const powerPort = new THREE.Mesh(
+    new THREE.BoxGeometry(0.06, 0.04, 0.005),
+    portMat,
+  );
+  powerPort.position.set(-0.18, D / 2, halfL - 0.003);
+  gb.add(powerPort);
+
+  // ============================================================
+  // CASE-HALF SEAM LINE (subtle, around perimeter at midline)
+  // ============================================================
   const seamMat = new THREE.MeshStandardMaterial({
     color: 0x6a5e84, roughness: 0.7,
   });

@@ -379,7 +379,28 @@ export function makeCommIndicatorMaterial() {
   return makeDecalMaterial(c);
 }
 
-// ---------------------------------------------------------------- SELECT . START label
+// ---------------------------------------------------------------- generic tiny label
+/**
+ * Single-word silkscreen label for things like "SELECT" or "START".
+ * Drawn dark green-ish to match the canonical GBC silkscreens.
+ */
+export function makeSmallLabel(text, { color = '#1f3d10', size = 60 } = {}) {
+  const W = 512, H = 128;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = color;
+  ctx.font = `700 ${size}px ${F_LABEL}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, W / 2, H / 2);
+
+  return makeDecalMaterial(c);
+}
+
+// ---------------------------------------------------------------- SELECT . START label (legacy, kept for back-compat)
 export function makeSelectStartLabelMaterial() {
   const W = 1024, H = 96;
   const c = document.createElement('canvas');
