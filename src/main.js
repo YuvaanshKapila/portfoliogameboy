@@ -62,9 +62,17 @@ const camera = new THREE.PerspectiveCamera(
   0.20,
   60,
 );
+// Mobile detection — viewport-based + UA fallback. Used to pull the
+// camera further back so the whole scene fits on a phone screen
+// where the FOV cone covers far less actual world-space.
+const IS_MOBILE =
+  (typeof window !== 'undefined') && (
+    window.matchMedia?.('(max-width: 820px)').matches ||
+    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  );
+
 // Initial camera: straight on, centered on the scene midpoint.
-// Pulled back further so the whole desk is visible at first glance.
-const camDist  = 5.2;
+const camDist  = IS_MOBILE ? 8.0 : 5.2;
 const camPolar = THREE.MathUtils.degToRad(13);
 const camAzim  = THREE.MathUtils.degToRad(0);
 const camTarget = new THREE.Vector3(-0.30, 0.15, 0);
@@ -84,8 +92,17 @@ orbit.dampingFactor = 0.06;
 // Tight camera locks — a recruiter can't lose their bearings or
 // rotate the scene off-screen. Only small, presentation-friendly
 // adjustments are allowed.
-orbit.minDistance = 3.4;
-orbit.maxDistance = 6.5;
+// Wider zoom range on mobile so pinch-to-zoom is usable.
+orbit.minDistance = IS_MOBILE ? 2.5 : 3.4;
+orbit.maxDistance = IS_MOBILE ? 14   : 6.5;
+orbit.enableZoom  = true;        // mouse wheel + pinch-to-zoom
+orbit.zoomSpeed   = IS_MOBILE ? 1.6 : 1.0;
+// Two-finger touch on mobile = dolly (pinch zoom).
+// Single-finger = rotate (orbit).
+orbit.touches = {
+  ONE: THREE.TOUCH.ROTATE,
+  TWO: THREE.TOUCH.DOLLY_PAN,
+};
 orbit.minPolarAngle = THREE.MathUtils.degToRad(8);
 orbit.maxPolarAngle = THREE.MathUtils.degToRad(28);
 orbit.minAzimuthAngle = THREE.MathUtils.degToRad(-22);
