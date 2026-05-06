@@ -42,8 +42,8 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 const camera = new THREE.PerspectiveCamera(
   32,
   window.innerWidth / window.innerHeight,
-  0.05,
-  100,
+  0.20,
+  50,
 );
 const camDist = 2.6;
 const camPolar = THREE.MathUtils.degToRad(15);  // 0 = straight down, 90 = horizon
@@ -70,14 +70,27 @@ buildLighting(scene);
 buildTable(scene);
 
 (async () => {
-  // Wait for the Cabin / Jost web fonts before drawing canvas textures —
-  // otherwise the silkscreen wordmark falls back to a plain sans-serif.
-  if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready; } catch (_) {}
+  // Force-load the exact font sizes the canvas textures will use.
+  // Google Fonts CSS only loads a font when something on the page renders
+  // with it, so a canvas-only consumer like our GBC logo would otherwise
+  // race the texture-build and fall back to a system font (the cause of
+  // the "GAME BOY COLOR isn't showing on first load" bug).
+  if (document.fonts && document.fonts.load) {
+    try {
+      await Promise.all([
+        document.fonts.load('400 280px "Lilita One"'),
+        document.fonts.load('400 200px "Lilita One"'),
+        document.fonts.load('italic 700 160px "Cabin"'),
+        document.fonts.load('italic 700 130px "Cabin"'),
+        document.fonts.load('italic 700 320px "Cabin"'),
+        document.fonts.load('700 76px "Jost"'),
+        document.fonts.load('600 48px "Jost"'),
+      ]);
+      await document.fonts.ready;
+    } catch (_) { /* ignore — fall back to defaults */ }
   }
 
   const gameBoy = buildGameBoy();
-  // Lying completely flat on the desk. No tilt — the camera does the work.
   gameBoy.rotation.set(0, 0, 0);
   gameBoy.position.set(0, 0, 0);
   scene.add(gameBoy);

@@ -21,13 +21,39 @@ const F_LABEL    = '"Jost", "Futura", "Century Gothic", "Trebuchet MS", sans-ser
 // hand-drawn italic letters. Bowlby One is the fallback with similar weight.
 const F_DISPLAY  = '"Lilita One", "Bowlby One", "Cooper Std", "Arial Black", sans-serif';
 
+/**
+ * Standard decal-material factory. Every transparent silkscreen / etched
+ * mark on the device should use this — it guarantees consistent depth
+ * behavior so the decals never z-fight with the surface they sit on,
+ * regardless of camera angle.
+ */
+function makeDecalMaterial(canvas, { roughness = 0.65 } = {}) {
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 16;
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    transparent: true,
+    depthWrite: false,
+    roughness,
+    metalness: 0,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
+  });
+}
+
 // ---------------------------------------------------------------- materials
+// Atomic Purple GBC — translucent lavender plastic with high clearcoat sheen.
 export const matBodyKiwi = new THREE.MeshPhysicalMaterial({
-  color: 0x9bd84a,
-  roughness: 0.45,
-  clearcoat: 0.55,
-  clearcoatRoughness: 0.32,
-  reflectivity: 0.25,
+  color: 0xb3a5d4,
+  roughness: 0.32,
+  clearcoat: 0.85,
+  clearcoatRoughness: 0.18,
+  reflectivity: 0.35,
+  sheen: 0.25,
+  sheenRoughness: 0.6,
+  sheenColor: new THREE.Color(0xddd0f0),
 });
 
 export const matBezel = new THREE.MeshPhysicalMaterial({
@@ -114,42 +140,38 @@ export function makeWalnutMaterial() {
   });
 }
 
-// ---------------------------------------------------------------- screen (LCD off)
+// ---------------------------------------------------------------- screen (LCD)
 /**
- * GBC LCD when powered off — a pale grayish-lavender surface with a
- * fine pixel grid and a soft glass sheen. Lighter than the DMG to
- * match the GBC's TFT panel character.
+ * GBC LCD — bright white panel. Uses polygonOffset so it always wins
+ * the depth test against the bezel surface, eliminating z-fighting
+ * flicker when the camera orbits.
  */
 export function makeScreenMaterial() {
   const c = document.createElement('canvas');
-  c.width = 1024; c.height = 920;
+  c.width = 1024; c.height = 1024;
   const ctx = c.getContext('2d');
 
-  // pale lavender-gray base
-  const g = ctx.createLinearGradient(0, 0, 0, 920);
-  g.addColorStop(0, '#bcc1c8');
-  g.addColorStop(1, '#9ea3ad');
+  const g = ctx.createLinearGradient(0, 0, 0, 1024);
+  g.addColorStop(0, '#f6f3eb');
+  g.addColorStop(1, '#ddd9cf');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 1024, 920);
+  ctx.fillRect(0, 0, 1024, 1024);
 
-  // crisp pixel grid
-  ctx.fillStyle = 'rgba(40, 45, 60, 0.18)';
-  for (let y = 0; y < 920; y += 5) ctx.fillRect(0, y, 1024, 1);
-  for (let x = 0; x < 1024; x += 5) ctx.fillRect(x, 0, 1, 920);
+  ctx.fillStyle = 'rgba(40, 45, 60, 0.10)';
+  for (let y = 0; y < 1024; y += 5) ctx.fillRect(0, y, 1024, 1);
+  for (let x = 0; x < 1024; x += 5) ctx.fillRect(x, 0, 1, 1024);
 
-  // gentle vignette
-  const v = ctx.createRadialGradient(512, 460, 200, 512, 460, 700);
+  const v = ctx.createRadialGradient(512, 512, 200, 512, 512, 720);
   v.addColorStop(0, 'rgba(0,0,0,0)');
-  v.addColorStop(1, 'rgba(0,0,0,0.22)');
+  v.addColorStop(1, 'rgba(0,0,0,0.18)');
   ctx.fillStyle = v;
-  ctx.fillRect(0, 0, 1024, 920);
+  ctx.fillRect(0, 0, 1024, 1024);
 
-  // diagonal glass sheen
-  const sweep = ctx.createLinearGradient(0, 0, 1024, 920);
-  sweep.addColorStop(0, 'rgba(255,255,255,0.18)');
-  sweep.addColorStop(0.45, 'rgba(255,255,255,0.0)');
+  const sweep = ctx.createLinearGradient(0, 0, 1024, 1024);
+  sweep.addColorStop(0, 'rgba(255,255,255,0.20)');
+  sweep.addColorStop(0.4, 'rgba(255,255,255,0.0)');
   ctx.fillStyle = sweep;
-  ctx.fillRect(0, 0, 1024, 920);
+  ctx.fillRect(0, 0, 1024, 1024);
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -157,8 +179,11 @@ export function makeScreenMaterial() {
 
   return new THREE.MeshStandardMaterial({
     map: tex,
-    roughness: 0.28,
-    metalness: 0.05,
+    roughness: 0.25,
+    metalness: 0.0,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
   });
 }
 
@@ -236,26 +261,22 @@ export function makeGameBoyColorLogoMaterial() {
   }
   ctx.restore();
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    roughness: 0.55,
-    metalness: 0,
-  });
+  return makeDecalMaterial(c, { roughness: 0.55 });
 }
 
-// ---------------------------------------------------------------- "Nintendo®" red wordmark
+// ---------------------------------------------------------------- "Yuvaansh" engraved wordmark
 /**
- * The classic Nintendo wordmark — proper Nintendo red, italic, with a
- * subtle dark outline + drop-shadow giving it the embossed/raised look
- * silkscreened on the green plastic of the GBC body.
+ * Subtle, monochrome wordmark etched INTO the plastic body. No color
+ * fill — purely the engraved depth effect:
+ *   - light bottom-edge highlight  (bounce light on the recess rim)
+ *   - dark inner letterform         (the inside of the recess)
+ *   - darker top-edge shadow        (the top lip casts shadow into the recess)
+ *
+ * Looks like a real silkscreened/etched mark, not a printed label.
+ * Pass in any name; defaults to "Yuvaansh".
  */
-export function makeNintendoWordmarkMaterial() {
-  const W = 1400, H = 256;
+export function makeNintendoWordmarkMaterial(name = 'Yuvaansh') {
+  const W = 1400, H = 220;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
@@ -264,56 +285,27 @@ export function makeNintendoWordmarkMaterial() {
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
 
-  // ===== "Nintendo" wordmark with debossed depth =====
   ctx.save();
-  ctx.translate(W / 2 - 30, H / 2);
-  ctx.transform(1, 0, -0.12, 1, 0, 0);     // strong italic skew (Pretendo-feel)
-  ctx.font = `italic 700 160px ${F_WORDMARK}`;
+  ctx.translate(W / 2, H / 2);
+  ctx.transform(1, 0, -0.08, 1, 0, 0);
+  ctx.font = `italic 700 110px ${F_WORDMARK}`;
 
-  const word = 'Nintendo';
+  // 1. light bottom-edge highlight
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+  ctx.fillText(name, 0, 3);
 
-  // 1. dark drop-shadow underneath (gives 3D depth)
-  ctx.fillStyle = 'rgba(50, 0, 5, 0.45)';
-  ctx.fillText(word, 5, 8);
+  // 2. dark inner letterform — kept VERY subtle so the mark is barely
+  //    visible on the lavender plastic, like a real etched silkscreen
+  ctx.fillStyle = 'rgba(40, 30, 55, 0.78)';
+  ctx.fillText(name, 0, 0);
 
-  // 2. dark stroke outline (the "depth outline" the user asked for)
-  ctx.strokeStyle = '#5c0a14';
-  ctx.lineWidth = 8;
-  ctx.lineJoin = 'round';
-  ctx.strokeText(word, 0, 0);
+  // 3. darker top-edge shadow
+  ctx.fillStyle = 'rgba(20, 10, 30, 0.30)';
+  ctx.fillText(name, 0, -2);
 
-  // 3. main red fill — canonical Nintendo red
-  ctx.fillStyle = '#d8232a';
-  ctx.fillText(word, 0, 0);
-
-  // 4. subtle highlight on top
-  const grad = ctx.createLinearGradient(0, -80, 0, 80);
-  grad.addColorStop(0, 'rgba(255,255,255,0.35)');
-  grad.addColorStop(0.4, 'rgba(255,255,255,0)');
-  ctx.fillStyle = grad;
-  ctx.fillText(word, 0, 0);
   ctx.restore();
 
-  // ===== ® mark =====
-  ctx.save();
-  ctx.font = `700 44px ${F_WORDMARK}`;
-  ctx.fillStyle = 'rgba(50, 0, 5, 0.45)';
-  ctx.textAlign = 'left';
-  ctx.fillText('®', W / 2 + 350, H / 2 - 38);
-  ctx.fillStyle = '#d8232a';
-  ctx.fillText('®', W / 2 + 345, H / 2 - 42);
-  ctx.restore();
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    roughness: 0.55,
-    metalness: 0,
-  });
+  return makeDecalMaterial(c, { roughness: 0.65 });
 }
 
 // ---------------------------------------------------------------- POWER indicator
@@ -357,16 +349,7 @@ export function makePowerIndicatorMaterial() {
   ctx.textAlign = 'left';
   ctx.fillText('POWER', 50, 230);
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    roughness: 0.7,
-    metalness: 0,
-  });
+  return makeDecalMaterial(c);
 }
 
 // ---------------------------------------------------------------- "▲ COMM" indicator
@@ -393,16 +376,7 @@ export function makeCommIndicatorMaterial() {
   ctx.textBaseline = 'middle';
   ctx.fillText('COMM', 210, 70);
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    roughness: 0.7,
-    metalness: 0,
-  });
+  return makeDecalMaterial(c);
 }
 
 // ---------------------------------------------------------------- SELECT . START label
@@ -435,16 +409,7 @@ export function makeSelectStartLabelMaterial() {
   x += sw + gap;
   ctx.fillText(right, x, H / 2);
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    roughness: 0.7,
-    metalness: 0,
-  });
+  return makeDecalMaterial(c);
 }
 
 // ---------------------------------------------------------------- A / B engraved letters
@@ -468,76 +433,56 @@ export function makeButtonLetterMaterial(letter) {
   ctx.fillStyle = '#5a5a58';
   ctx.fillText(letter, 256, 256);
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    roughness: 0.7,
-    metalness: 0,
-  });
+  return makeDecalMaterial(c);
 }
 
 // ---------------------------------------------------------------- Speaker dot grid
 /**
- * GBC speaker — a tightly packed hex grid of small dark round holes
- * forming a roughly triangular cluster in the bottom-right corner of
- * the front face. Tuned to match the canonical photo: ~50-60 holes
- * total, packed close together, fading toward the upper-left edge.
+ * Speaker — a small rounded-square area with a sparse dot pattern.
+ * ~16 round holes arranged in a 4×4 hex-offset grid, plus a soft
+ * inner shadow on each. Sized to match the photo: small, compact,
+ * neatly contained.
  */
 export function makeSpeakerGridMaterial() {
-  const W = 1024, H = 1024;
+  const W = 512, H = 512;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, W, H);
 
-  const radius = 14;
-  const stepX = 36;
-  const stepY = 32;
-  const rows = 18;
-  const cols = 18;
+  // ===== rounded-square boundary that the dots sit inside =====
+  // Just a debug visual — kept transparent in final output.
 
-  ctx.fillStyle = '#080808';
+  // ===== dot grid =====
+  const radius = 26;
+  const stepX = 88;
+  const stepY = 78;
+  const rows = 4;
+  const cols = 4;
 
-  // Origin at canvas center; cluster sits in bottom-right quadrant.
-  const originX = W * 0.55;
-  const originY = H * 0.55;
+  // center the grid in the canvas
+  const totalW = (cols - 1) * stepX + stepX / 2;
+  const totalH = (rows - 1) * stepY;
+  const startX = (W - totalW) / 2 + radius;
+  const startY = (H - totalH) / 2;
 
   for (let r = 0; r < rows; r++) {
     for (let cI = 0; cI < cols; cI++) {
       const offset = (r % 2 === 0) ? 0 : stepX / 2;
-      const x = originX + cI * stepX + offset;
-      const y = originY + r * stepY;
+      const x = startX + cI * stepX + offset;
+      const y = startY + r * stepY;
 
-      // Triangular silhouette: keep holes only where (cI + r > some) and within bounds
-      const triEdge = (cI + r * 0.85) > 1.5 && (r + cI) > 2;
-      if (!triEdge) continue;
-      if (x > W - 20 || y > H - 20) continue;
-
-      // soft inner shadow on each hole for depth
-      const grad = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, radius);
-      grad.addColorStop(0, '#1a1a1a');
-      grad.addColorStop(0.6, '#080808');
+      // soft inner shadow per hole for depth
+      const grad = ctx.createRadialGradient(x - 5, y - 5, 1, x, y, radius);
+      grad.addColorStop(0, '#222222');
+      grad.addColorStop(0.55, '#0a0a0a');
       grad.addColorStop(1, '#000000');
       ctx.fillStyle = grad;
-
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    roughness: 0.85,
-    metalness: 0,
-  });
+  return makeDecalMaterial(c, { roughness: 0.85 });
 }
