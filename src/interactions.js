@@ -52,19 +52,30 @@ export function setupInteractions({
     refreshGbBox();
   });
 
-  drag.addEventListener('drag', (e) => {
-    const p = e.object.position;
-    const wasSnapped = e.object.userData.snapped === true;
-    const dist = p.distanceTo(slotWorld);
+  // reusable buffers
+  const _cartWorld = new THREE.Vector3();
+  const _slotLocal = new THREE.Vector3();
 
-    // Hysteresis: once snapped, you have to drag past UNSNAP_RADIUS
-    // to release; otherwise SNAP_RADIUS pulls you in.
+  drag.addEventListener('drag', (e) => {
+    const wasSnapped = e.object.userData.snapped === true;
+
+    // Critical: the cart is a child of cartGroup, so e.object.position
+    // is in cartGroup's local space. slotWorld is world-space. We MUST
+    // compare in world-space — getWorldPosition() walks the parent
+    // chain to compute it.
+    e.object.getWorldPosition(_cartWorld);
+    const dist = _cartWorld.distanceTo(slotWorld);
+
+    // Hysteresis: once snapped, drag past UNSNAP_RADIUS to release.
     const threshold = wasSnapped ? UNSNAP_RADIUS : SNAP_RADIUS;
 
     if (dist < threshold) {
-      // HARD snap — copy slot position directly so the cart visibly
-      // clips into place (no soft lerp that drifts on every frame)
-      p.copy(slotWorld);
+      // Hard snap — set the cart's LOCAL position so its WORLD
+      // position equals slotWorld. parent.worldToLocal() does the
+      // conversion.
+      _slotLocal.copy(slotWorld);
+      if (e.object.parent) e.object.parent.worldToLocal(_slotLocal);
+      e.object.position.copy(_slotLocal);
       e.object.rotation.set(0, 0, 0);
       e.object.userData.snapped = true;
       return;
@@ -73,12 +84,18 @@ export function setupInteractions({
     e.object.userData.snapped = false;
 
     // Otherwise, prevent the cart from passing through the console
+    // (compare world-space cart center against world-space body box)
     if (
-      p.x >= gbBox.min.x && p.x <= gbBox.max.x &&
-      p.z >= gbBox.min.z && p.z <= gbBox.max.z
+      _cartWorld.x >= gbBox.min.x && _cartWorld.x <= gbBox.max.x &&
+      _cartWorld.z >= gbBox.min.z && _cartWorld.z <= gbBox.max.z
     ) {
-      const minY = gbBox.max.y + 0.04;
-      if (p.y < minY) p.y = minY;
+      const minWorldY = gbBox.max.y + 0.04;
+      if (_cartWorld.y < minWorldY) {
+        // lift the cart in world space — convert the lift back to
+        // local-space delta
+        const lift = minWorldY - _cartWorld.y;
+        e.object.position.y += lift;
+      }
     }
   });
 

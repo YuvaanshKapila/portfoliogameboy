@@ -38,16 +38,97 @@ export function buildGameBoy() {
   const halfL = L / 2;
 
   // ============================================================
-  // BODY
+  // BODY  —  built as multiple boxes so we can leave a REAL hole at
+  // the back-top for the cartridge slot. Without CSG, this is the
+  // honest way to get an opening that the camera can see into.
+  //
+  //   bottom slab   = full body footprint, lower 0.17 of height
+  //   top-front     = top half ahead of the slot
+  //   top-back      = top half behind the slot (thin strip)
+  //   top-left      = top half left of the slot
+  //   top-right     = top half right of the slot
+  // (the area where the slot lives stays empty — that's the hole)
   // ============================================================
-  const body = new THREE.Mesh(
-    new RoundedBoxGeometry(W, D, L, 14, 0.04),
+  const slotW       = 0.54;          // hole width  (X)
+  const slotZ       = 0.10;          // hole depth  (Z)
+  const slotCenterZ = -halfL + 0.13; // sits near the back-top edge
+  const slotXmin    = -slotW / 2;
+  const slotXmax    =  slotW / 2;
+  const slotZmin    = slotCenterZ - slotZ / 2;
+  const slotZmax    = slotCenterZ + slotZ / 2;
+  const bottomH     = 0.17;          // bottom slab height
+  const topH        = D - bottomH;   // top slab height
+  const topY        = bottomH + topH / 2;
+
+  // bottom slab — keep the rounded look on the visible lower portion
+  const bottomSlab = new THREE.Mesh(
+    new RoundedBoxGeometry(W, bottomH, L, 10, 0.04),
     matBodyKiwi,
   );
-  body.castShadow = true;
-  body.receiveShadow = true;
-  body.position.y = D / 2;
-  gb.add(body);
+  bottomSlab.position.y = bottomH / 2;
+  bottomSlab.castShadow = true;
+  bottomSlab.receiveShadow = true;
+  gb.add(bottomSlab);
+
+  // top-front (the big slab in front of the slot)
+  const topFrontL = halfL - slotZmax;
+  const topFrontZ = (slotZmax + halfL) / 2;
+  const topFront = new THREE.Mesh(
+    new RoundedBoxGeometry(W, topH, topFrontL, 8, 0.04),
+    matBodyKiwi,
+  );
+  topFront.position.set(0, topY, topFrontZ);
+  topFront.castShadow = true;
+  topFront.receiveShadow = true;
+  gb.add(topFront);
+
+  // top-back (thin strip behind the slot)
+  const topBackL = slotZmin - (-halfL);
+  const topBackZ = ((-halfL) + slotZmin) / 2;
+  const topBack = new THREE.Mesh(
+    new RoundedBoxGeometry(W, topH, topBackL, 6, 0.03),
+    matBodyKiwi,
+  );
+  topBack.position.set(0, topY, topBackZ);
+  topBack.castShadow = true;
+  topBack.receiveShadow = true;
+  gb.add(topBack);
+
+  // top-left (around the slot)
+  const topSideW = (-slotXmin) - (-halfW);   // = halfW - slotW/2
+  const topLeftX = (-halfW + slotXmin) / 2;
+  const topLeft = new THREE.Mesh(
+    new THREE.BoxGeometry(topSideW, topH, slotZ),
+    matBodyKiwi,
+  );
+  topLeft.position.set(topLeftX, topY, slotCenterZ);
+  topLeft.castShadow = true;
+  topLeft.receiveShadow = true;
+  gb.add(topLeft);
+
+  // top-right (mirror)
+  const topRight = topLeft.clone();
+  topRight.position.x = -topLeftX;
+  gb.add(topRight);
+
+  // Slot floor — a dark plane sitting on top of the bottom slab,
+  // covering the inside area of the hole. Reads as the cavity floor.
+  const slotFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(slotW * 0.96, slotZ * 0.92),
+    new THREE.MeshStandardMaterial({
+      color: 0x040404, roughness: 0.95, metalness: 0,
+    }),
+  );
+  slotFloor.rotation.x = -Math.PI / 2;
+  slotFloor.position.set(0, bottomH + 0.001, slotCenterZ);
+  gb.add(slotFloor);
+
+  // Snap anchor sits IN the hole (a bit above the floor) so a snapped
+  // cart visibly clips into the slot.
+  const cartSlotAnchor = new THREE.Object3D();
+  cartSlotAnchor.name = 'cart-slot-anchor';
+  cartSlotAnchor.position.set(0, bottomH + 0.06, slotCenterZ);
+  gb.add(cartSlotAnchor);
 
   // ============================================================
   // BEZEL  +  LCD  (LCD enlarged to match reference proportions)
@@ -111,7 +192,7 @@ export function buildGameBoy() {
 
   // ---------- "GAME BOY COLOR" wordmark (centered below LCD) ----------
   const gbcLogo = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.55, 0.10),
+    new THREE.PlaneGeometry(0.46, 0.085),
     makeGameBoyColorLogoMaterial(),
   );
   gbcLogo.rotation.x = -Math.PI / 2;
@@ -317,70 +398,9 @@ export function buildGameBoy() {
   powerPort.position.set(-0.18, D / 2, halfL - 0.003);
   gb.add(powerPort);
 
-  // ============================================================
-  // CARTRIDGE SLOT — REAL recess carved into the top face
-  //
-  // A dark box drops down from the top surface into the body. Three
-  // visible parts:
-  //   - the outer dark recess box (cavity walls)
-  //   - the inner near-black floor (deepest part)
-  //   - a thin raised lip around the opening
-  //
-  // Sits at the back-top portion of the device. The opening faces
-  // straight up, so a cartridge snapped into it visibly stands in
-  // the slot.
-  // ============================================================
-  const slotW = 0.54;       // opening width (X)
-  const slotDepth = 0.08;   // opening Z extent on the top face
-  const slotCavityH = 0.10; // how far the cavity goes down into the body
-  const slotCenterZ = -halfL + 0.10;
-
-  // The cavity itself — a dark box recessed below the body top
-  const slotCavity = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW, slotCavityH, slotDepth),
-    new THREE.MeshStandardMaterial({
-      color: 0x040404, roughness: 0.9, metalness: 0,
-    }),
-  );
-  slotCavity.position.set(0, D - slotCavityH / 2, slotCenterZ);
-  gb.add(slotCavity);
-
-  // Raised lip around the opening — thin frame in body color, sits
-  // flush with the top face, reads as the molded edge of the slot
-  const lipMat = new THREE.MeshStandardMaterial({
-    color: 0x141416, roughness: 0.7,
-  });
-  const lipT = 0.012;
-  const lipH = 0.004;
-  // front lip
-  const lipFront = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW + lipT * 2, lipH, lipT),
-    lipMat,
-  );
-  lipFront.position.set(0, D + lipH / 2, slotCenterZ + slotDepth / 2 + lipT / 2);
-  gb.add(lipFront);
-  // back lip
-  const lipBack = lipFront.clone();
-  lipBack.position.z = slotCenterZ - slotDepth / 2 - lipT / 2;
-  gb.add(lipBack);
-  // left lip
-  const lipLeft = new THREE.Mesh(
-    new THREE.BoxGeometry(lipT, lipH, slotDepth),
-    lipMat,
-  );
-  lipLeft.position.set(-slotW / 2 - lipT / 2, D + lipH / 2, slotCenterZ);
-  gb.add(lipLeft);
-  // right lip
-  const lipRight = lipLeft.clone();
-  lipRight.position.x = slotW / 2 + lipT / 2;
-  gb.add(lipRight);
-
-  // Snap anchor — sits IN the slot. When a cart snaps here, its
-  // bottom half is inside the cavity and the label half pokes out.
-  const cartSlotAnchor = new THREE.Object3D();
-  cartSlotAnchor.name = 'cart-slot-anchor';
-  cartSlotAnchor.position.set(0, D + 0.10, slotCenterZ);
-  gb.add(cartSlotAnchor);
+  // (cartridge slot now lives in the body construction above — it's
+  //  a real geometric hole formed by the gap between the top-front,
+  //  top-back, top-left, and top-right slabs.)
 
   // ============================================================
   // CASE-HALF SEAM LINE (subtle, around perimeter at midline)
