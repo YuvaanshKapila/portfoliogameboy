@@ -355,6 +355,22 @@ export function setupInteractions({
   function playInsertSnap()  { blip(380, 0.05, 0.09); blip(720, 0.07, 0.07, 'square', 0.05); }
   function playEjectClick()  { blip(720, 0.04, 0.07); blip(360, 0.06, 0.06, 'square', 0.03); }
 
+  // Real Game Boy Advance startup sound (mp3) — used in place of the
+  // synth boot chime when the user powers on. Lazily created on first
+  // use so we don't preload audio that may never play.
+  let startupAudio = null;
+  function playStartupMp3() {
+    try {
+      if (!startupAudio) {
+        startupAudio = new Audio('/startup.mp3');
+        startupAudio.preload = 'auto';
+        startupAudio.volume = 0.55;
+      }
+      startupAudio.currentTime = 0;
+      startupAudio.play().catch(() => {});
+    } catch (_) { /* ignore */ }
+  }
+
   function playBootChime() {
     ensureAudio();
     const t0 = audioCtx.currentTime;
@@ -491,7 +507,7 @@ export function setupInteractions({
     // content depending on whether one is snapped in.
     drawBootFrame(0);
     setLcd(bootMaterial);
-    playBootChime();
+    playStartupMp3();
 
     setTimeout(() => { refreshLcd(); }, TOTAL_DUR * 1000);
   }
