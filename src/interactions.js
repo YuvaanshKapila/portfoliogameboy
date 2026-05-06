@@ -36,11 +36,14 @@ export function setupInteractions({
   refreshGbBox();
   refreshSlotWorld();
 
-  // Snap is now release-based: when the user drops a cart within
-  // SNAP_RADIUS of the slot, it smoothly slides into place via
-  // per-frame lerp in update(). Tighter radius = less aggressive.
-  const SNAP_RADIUS = 0.25;
-  const SNAP_LERP   = 0.18;       // per-frame slide-in speed
+  // Snap is release-based and constrained:
+  //   - drop must be within SNAP_RADIUS of the slot
+  //   - drop must be at/behind the slot Z plane (not on TOP of console)
+  // This way dropping a cart on the front face just lets it rest
+  // on top — only drops aimed at the actual slot snap in.
+  const SNAP_RADIUS    = 0.20;
+  const SNAP_Z_TOL     = 0.18;    // drop z must be <= slotWorld.z + this
+  const SNAP_LERP      = 0.28;    // faster slide-in so transit is brief
 
   const drag = new DragControls(cartridges, camera, canvas);
   drag.transformGroup = true;
@@ -85,23 +88,28 @@ export function setupInteractions({
     orbit.enabled = true;
     e.object.userData.dragging = false;
 
-    // On release: if the cart is close enough to the slot, mark it
-    // as snapped and let update() smoothly slide it in. Otherwise
-    // enable gravity and let it fall.
+    // Refresh anchors in case the camera moved during the drag
+    refreshSlotWorld();
+
     e.object.getWorldPosition(_cartWorld);
     const dist = _cartWorld.distanceTo(slotWorld);
+    // Drop must be near the back face — not on top of the console
+    const inSlotZone = (_cartWorld.z <= slotWorld.z + SNAP_Z_TOL);
 
-    if (dist < SNAP_RADIUS) {
+    if (dist < SNAP_RADIUS && inSlotZone) {
       e.object.userData.snapped = true;
       e.object.userData.physicsActive = false;
     } else {
       e.object.userData.snapped = false;
-      e.object.rotation.set(0, 0, 0);
+      // initialize velocity & enable gravity so the cart falls
       if (!e.object.userData.velocity) {
         e.object.userData.velocity = new THREE.Vector3();
       }
       e.object.userData.velocity.set(0, 0, 0);
       e.object.userData.physicsActive = true;
+      // smoothly relax rotation back to flat in update() rather than
+      // snapping; just reset to flat here for simplicity
+      e.object.rotation.set(0, 0, 0);
     }
   });
 
