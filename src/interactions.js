@@ -16,7 +16,29 @@ export function setupInteractions({
 }) {
   const canvas = renderer.domElement;
 
-  // ---------------- DragControls — full 3D drag (no plane clamp) ----------------
+  // ---------------- DragControls + snap-to-slot + collision ----------------
+  // Snap target — invisible Object3D inside the Game Boy at the cart slot
+  const slotAnchor = gameBoy.getObjectByName('cart-slot-anchor');
+  const slotWorld = new THREE.Vector3();
+  function refreshSlotWorld() {
+    if (slotAnchor) slotAnchor.getWorldPosition(slotWorld);
+  }
+
+  // Body bounds (axis-aligned, world space) — used to keep cartridges
+  // from being dragged THROUGH the console body.
+  const gbBox = new THREE.Box3();
+  function refreshGbBox() {
+    gbBox.setFromObject(gameBoy);
+    // exclude the snap anchor (it sits above the body) — shrink the
+    // top of the box back down to the body's actual top surface
+    // (~D * scale at the gameBoy origin).
+  }
+  refreshGbBox();
+  refreshSlotWorld();
+
+  const SNAP_RADIUS = 0.22;       // distance to slot at which snap kicks in
+  const SNAP_LERP   = 0.45;       // how aggressively to pull toward slot
+
   const drag = new DragControls(cartridges, camera, canvas);
   drag.transformGroup = true;
 
@@ -26,12 +48,48 @@ export function setupInteractions({
     // small visual cue: tip the cartridge slightly while held
     e.object.rotation.x = THREE.MathUtils.degToRad(-4);
     e.object.rotation.z = THREE.MathUtils.degToRad(2);
+    refreshSlotWorld();
+    refreshGbBox();
   });
+
+  drag.addEventListener('drag', (e) => {
+    const p = e.object.position;
+
+    // 1) Snap to the cart-slot anchor when close enough
+    const dist = p.distanceTo(slotWorld);
+    if (dist < SNAP_RADIUS) {
+      // smoothly lerp toward slot world position
+      p.lerp(slotWorld, SNAP_LERP);
+      // align orientation so the cart "stands up" in the slot
+      e.object.rotation.x = 0;
+      e.object.rotation.y = 0;
+      e.object.rotation.z = 0;
+      e.object.userData.snapped = true;
+      return;
+    }
+
+    e.object.userData.snapped = false;
+
+    // 2) Otherwise, push out of the Game Boy body so the cart can't
+    //    pass through the console. Simple AABB clamp: if the cart's
+    //    center sits inside the body's footprint AND below its top,
+    //    lift it up to rest on top of the body.
+    if (
+      p.x >= gbBox.min.x && p.x <= gbBox.max.x &&
+      p.z >= gbBox.min.z && p.z <= gbBox.max.z
+    ) {
+      const minY = gbBox.max.y + 0.04;
+      if (p.y < minY) p.y = minY;
+    }
+  });
+
   drag.addEventListener('dragend', (e) => {
     orbit.enabled = true;
     e.object.userData.dragging = false;
-    e.object.rotation.x = 0;
-    e.object.rotation.z = 0;
+    if (!e.object.userData.snapped) {
+      e.object.rotation.x = 0;
+      e.object.rotation.z = 0;
+    }
   });
 
   // ---------------- Pointer raycaster for Game Boy buttons ----------------

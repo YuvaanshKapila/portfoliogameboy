@@ -318,35 +318,61 @@ export function buildGameBoy() {
   gb.add(powerPort);
 
   // ============================================================
-  // CARTRIDGE SLOT — clearly visible recess on the TOP edge
+  // CARTRIDGE SLOT — carved into the TOP FACE of the body
+  //
+  // Sits flat on the top surface (y = D), pointing up. Two layered
+  // dark planes give the impression of a recess: an outer frame and
+  // an inner darker rectangle that reads as the slot opening. No
+  // 3D box pokes through the body sides — everything stays on the
+  // top face.
+  //
+  // An invisible Object3D anchor marks the snap target so the
+  // cartridges can lock into position when dragged near.
   // ============================================================
-  const slotW = 0.62;
-  const slotH = 0.06;
-  const slotZ = 0.10;
+  const slotOuterW = 0.60;
+  const slotOuterZ = 0.11;
+  const slotInnerW = 0.56;
+  const slotInnerZ = 0.07;
+  // place toward the back-top edge of the device
+  const slotCenterZ = -halfL + 0.13;
 
-  const cartOuter = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW + 0.02, slotH, slotZ),
-    matBezel,
+  // Outer frame — slightly raised dark rim around the opening
+  const slotFrame = new THREE.Mesh(
+    new THREE.PlaneGeometry(slotOuterW, slotOuterZ),
+    new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      roughness: 0.65,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    }),
   );
-  cartOuter.position.set(0, D - slotH / 2 + 0.001, -halfL + slotZ / 2 + 0.005);
-  gb.add(cartOuter);
+  slotFrame.rotation.x = -Math.PI / 2;
+  slotFrame.position.set(0, D + 0.0008, slotCenterZ);
+  gb.add(slotFrame);
 
-  const cartInner = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW, slotH * 0.55, slotZ * 0.55),
-    new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.95 }),
+  // Inner opening — darker, suggests the cavity inside
+  const slotHole = new THREE.Mesh(
+    new THREE.PlaneGeometry(slotInnerW, slotInnerZ),
+    new THREE.MeshStandardMaterial({
+      color: 0x040404,
+      roughness: 0.95,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+    }),
   );
-  cartInner.position.set(0, D - slotH / 2 + 0.012, -halfL + slotZ / 2 + 0.005);
-  gb.add(cartInner);
+  slotHole.rotation.x = -Math.PI / 2;
+  slotHole.position.set(0, D + 0.0010, slotCenterZ);
+  gb.add(slotHole);
 
-  const notchMat = new THREE.MeshStandardMaterial({ color: 0x080808 });
-  for (const x of [-slotW / 2 + 0.02, slotW / 2 - 0.02]) {
-    const notch = new THREE.Mesh(
-      new THREE.BoxGeometry(0.018, slotH * 0.8, slotZ * 0.7),
-      notchMat,
-    );
-    notch.position.set(x, D - slotH / 2 + 0.008, -halfL + slotZ / 2 + 0.005);
-    gb.add(notch);
-  }
+  // Snap anchor — invisible Object3D the cartridges align to.
+  // Positioned just above the slot so a snapped cart sits visibly
+  // protruding from the slot, ~half-inserted.
+  const cartSlotAnchor = new THREE.Object3D();
+  cartSlotAnchor.name = 'cart-slot-anchor';
+  cartSlotAnchor.position.set(0, D + 0.18, slotCenterZ);
+  gb.add(cartSlotAnchor);
 
   // ============================================================
   // CASE-HALF SEAM LINE (subtle, around perimeter at midline)
