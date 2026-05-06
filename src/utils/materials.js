@@ -140,7 +140,99 @@ export function makeWalnutMaterial() {
   });
 }
 
-// ---------------------------------------------------------------- screen (LCD)
+// ---------------------------------------------------------------- screen — boot
+/**
+ * Classic GBC boot screen — white panel with the rainbow GAME BOY
+ * wordmark dropping in at the top and "Nintendo®" centered below.
+ * Built as an emissive material so the LCD glows like a real backlit
+ * panel when the device is "powered on".
+ */
+export function makeBootScreenMaterial() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 1024;
+  const ctx = c.getContext('2d');
+
+  // bright LCD background
+  const bg = ctx.createLinearGradient(0, 0, 0, 1024);
+  bg.addColorStop(0, '#fbfaf3');
+  bg.addColorStop(1, '#e8e6da');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // GAME BOY rainbow wordmark (top third)
+  ctx.save();
+  ctx.translate(512, 360);
+  ctx.transform(1, 0, -0.14, 1, 0, 0);
+  ctx.font = `400 200px ${F_DISPLAY}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+
+  const letters = ['G', 'A', 'M', 'E', ' ', 'B', 'O', 'Y'];
+  const colors  = [
+    '#e7332e', '#ee7e2e', '#f5d11a', '#2eb748',
+    '#ffffff',
+    '#2c5fce', '#9d3bd1', '#e7332e',
+  ];
+
+  // measure total width
+  let totalW = 0;
+  for (const ch of letters) totalW += ctx.measureText(ch).width;
+  let x = -totalW / 2;
+  for (let i = 0; i < letters.length; i++) {
+    const ch = letters[i];
+    // dark drop-shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillText(ch, x + 5, 6);
+    // colored fill
+    ctx.fillStyle = colors[i];
+    ctx.fillText(ch, x, 0);
+    x += ctx.measureText(ch).width;
+  }
+  ctx.restore();
+
+  // "Nintendo®" centered below
+  ctx.save();
+  ctx.translate(512, 620);
+  ctx.transform(1, 0, -0.10, 1, 0, 0);
+  ctx.font = `italic 700 96px ${F_WORDMARK}`;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText('Nintendo', 0, 0);
+  ctx.font = `700 32px ${F_WORDMARK}`;
+  ctx.fillText('®', 220, -28);
+  ctx.restore();
+
+  // faint pixel grid for that LCD-pixel feel
+  ctx.fillStyle = 'rgba(40, 45, 60, 0.10)';
+  for (let y = 0; y < 1024; y += 5) ctx.fillRect(0, y, 1024, 1);
+  for (let xx = 0; xx < 1024; xx += 5) ctx.fillRect(xx, 0, 1, 1024);
+
+  // gentle vignette
+  const v = ctx.createRadialGradient(512, 512, 200, 512, 512, 720);
+  v.addColorStop(0, 'rgba(0,0,0,0)');
+  v.addColorStop(1, 'rgba(0,0,0,0.18)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 16;
+
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    emissiveMap: tex,
+    emissive: new THREE.Color(0xfff0d0),
+    emissiveIntensity: 0.55,
+    roughness: 0.25,
+    metalness: 0.0,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+}
+
+// ---------------------------------------------------------------- screen (LCD off)
 /**
  * GBC LCD — bright white panel. Uses polygonOffset so it always wins
  * the depth test against the bezel surface, eliminating z-fighting

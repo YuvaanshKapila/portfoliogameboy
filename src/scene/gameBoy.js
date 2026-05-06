@@ -70,24 +70,45 @@ export function buildGameBoy() {
   bezel.receiveShadow = true;
   gb.add(bezel);
 
-  // LCD — 0.50 × 0.50 (was 0.42), centered horizontally, slightly upper
-  const lcdSize = 0.50;
+  // LCD — slightly smaller so the POWER indicator clears the screen edge
+  const lcdSize = 0.46;
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(lcdSize, lcdSize),
     makeScreenMaterial(),
   );
+  screen.name = 'lcd';
   screen.rotation.x = -Math.PI / 2;
-  screen.position.set(0, lcdY, bezelZ - 0.06);
+  // shifted right slightly to leave room for POWER on the left of the bezel
+  screen.position.set(0.04, lcdY, bezelZ - 0.06);
   gb.add(screen);
 
   // ---------- POWER indicator (left of bezel) ----------
   const powerInd = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.06, 0.14),
+    new THREE.PlaneGeometry(0.07, 0.16),
     makePowerIndicatorMaterial(),
   );
   powerInd.rotation.x = -Math.PI / 2;
-  powerInd.position.set(-0.255, decalY, bezelZ - 0.18);
+  powerInd.position.set(-0.265, decalY, bezelZ - 0.18);
   gb.add(powerInd);
+
+  // Power LED — small red dot just above the POWER indicator that
+  // lights up when the device is booted.
+  const led = new THREE.Mesh(
+    new THREE.CircleGeometry(0.012, 32),
+    new THREE.MeshStandardMaterial({
+      color: 0x551515,
+      emissive: 0x220505,
+      emissiveIntensity: 0.4,
+      roughness: 0.4,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
+    }),
+  );
+  led.name = 'led';
+  led.rotation.x = -Math.PI / 2;
+  led.position.set(-0.265, decalY, bezelZ - 0.30);
+  gb.add(led);
 
   // ---------- "GAME BOY COLOR" wordmark (centered below LCD) ----------
   const gbcLogo = new THREE.Mesh(
@@ -124,6 +145,10 @@ export function buildGameBoy() {
   dimple.position.y = dpadArmH / 2 - 0.001;
   dpadGroup.add(dimple);
   dpadGroup.position.set(-0.22, frontY + dpadArmH / 2 - 0.0015, 0.30);
+  dpadGroup.userData.button = 'dpad';
+  dpadH.userData.button = 'dpad';
+  dpadV.userData.button = 'dpad';
+  dpadGroup.name = 'btn-dpad';
   gb.add(dpadGroup);
 
   // ============================================================
@@ -157,6 +182,13 @@ export function buildGameBoy() {
   const btnA = makeFaceButton('A');
   btnB.position.set(-0.078, buttonHeight / 2, +0.022);
   btnA.position.set(+0.078, buttonHeight / 2, -0.022);
+  btnB.userData.button = 'b';
+  btnA.userData.button = 'a';
+  btnB.name = 'btn-b';
+  btnA.name = 'btn-a';
+  // tag children too so raycast hits register
+  btnB.traverse(o => o.userData.button = 'b');
+  btnA.traverse(o => o.userData.button = 'a');
   abGroup.add(btnB); abGroup.add(btnA);
   abGroup.position.set(0.22, frontY - 0.001, 0.30);
   gb.add(abGroup);
@@ -181,6 +213,10 @@ export function buildGameBoy() {
   const sta = makePill();
   sel.position.set(pillSelectX, frontY + 0.012, ssZ);
   sta.position.set(pillStartX,  frontY + 0.012, ssZ);
+  sel.userData.button = 'select';
+  sta.userData.button = 'start';
+  sel.name = 'btn-select';
+  sta.name = 'btn-start';
   gb.add(sel);
   gb.add(sta);
 

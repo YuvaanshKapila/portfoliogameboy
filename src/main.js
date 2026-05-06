@@ -5,15 +5,12 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildLighting } from './scene/lighting.js';
 import { buildTable } from './scene/table.js';
 import { buildGameBoy } from './scene/gameBoy.js';
+import { buildCartridgeBasket } from './scene/cartridges.js';
+import { setupInteractions } from './interactions.js';
 
 /* ------------------------------------------------------------------
-   Entry — wires up renderer, camera, lights, scene, and animation.
-
-   We wait for web fonts to load before constructing the Game Boy so
-   its canvas-texture decals (Cabin Bold Italic, Jost) render correctly
-   instead of falling back to a default sans-serif.
+   Renderer
    ------------------------------------------------------------------ */
-
 const canvas = document.getElementById('stage');
 
 const renderer = new THREE.WebGLRenderer({
@@ -29,16 +26,18 @@ renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+/* ------------------------------------------------------------------
+   Scene  (lighter, warmer background instead of near-black)
+   ------------------------------------------------------------------ */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0d0a06);
+scene.background = new THREE.Color(0x3c3744);
 
-// Subtle environment for natural reflections (PMREM from a procedural room).
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-// ---------------- camera (top-down with a slight forward tilt) ----------------
-// Polar = ~18° off straight-down so we still see the top edge with the
-// power switch protruding. Distance is tight so the device fills the frame.
+/* ------------------------------------------------------------------
+   Camera + OrbitControls
+   ------------------------------------------------------------------ */
 const camera = new THREE.PerspectiveCamera(
   32,
   window.innerWidth / window.innerHeight,
@@ -46,7 +45,7 @@ const camera = new THREE.PerspectiveCamera(
   50,
 );
 const camDist = 2.6;
-const camPolar = THREE.MathUtils.degToRad(15);  // 0 = straight down, 90 = horizon
+const camPolar = THREE.MathUtils.degToRad(15);
 const camAzim  = THREE.MathUtils.degToRad(0);
 camera.position.set(
   camDist * Math.sin(camPolar) * Math.sin(camAzim),
@@ -55,26 +54,25 @@ camera.position.set(
 );
 camera.lookAt(0, 0.10, 0);
 
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 1.6;
-controls.maxDistance = 5.5;
-controls.minPolarAngle = THREE.MathUtils.degToRad(0);    // straight down allowed
-controls.maxPolarAngle = THREE.MathUtils.degToRad(72);
-controls.target.set(0, 0.10, 0);
-controls.enablePan = false;
+const orbit = new OrbitControls(camera, canvas);
+orbit.enableDamping = true;
+orbit.dampingFactor = 0.06;
+orbit.minDistance = 1.6;
+orbit.maxDistance = 5.5;
+orbit.minPolarAngle = THREE.MathUtils.degToRad(0);
+orbit.maxPolarAngle = THREE.MathUtils.degToRad(72);
+orbit.target.set(0, 0.10, 0);
+orbit.enablePan = false;
 
-/* ---------------- build the scene ---------------- */
+/* ------------------------------------------------------------------
+   Build the scene
+   ------------------------------------------------------------------ */
 buildLighting(scene);
 buildTable(scene);
 
 (async () => {
-  // Force-load the exact font sizes the canvas textures will use.
-  // Google Fonts CSS only loads a font when something on the page renders
-  // with it, so a canvas-only consumer like our GBC logo would otherwise
-  // race the texture-build and fall back to a system font (the cause of
-  // the "GAME BOY COLOR isn't showing on first load" bug).
+  // Force-load the exact font sizes the canvas textures use, so the
+  // GBC logo / boot screen render correctly on first paint.
   if (document.fonts && document.fonts.load) {
     try {
       await Promise.all([
@@ -84,19 +82,32 @@ buildTable(scene);
         document.fonts.load('italic 700 130px "Cabin"'),
         document.fonts.load('italic 700 320px "Cabin"'),
         document.fonts.load('700 76px "Jost"'),
+        document.fonts.load('700 60px "Jost"'),
         document.fonts.load('600 48px "Jost"'),
       ]);
       await document.fonts.ready;
-    } catch (_) { /* ignore — fall back to defaults */ }
+    } catch (_) { /* ignore */ }
   }
 
   const gameBoy = buildGameBoy();
-  gameBoy.rotation.set(0, 0, 0);
   gameBoy.position.set(0, 0, 0);
   scene.add(gameBoy);
+
+  // Cartridge basket on the LEFT side of the desk
+  const { group: cartGroup, cartridges } = buildCartridgeBasket();
+  cartGroup.position.set(-1.20, 0, 0.10);
+  scene.add(cartGroup);
+
+  // Wire up clicks, drags, and the boot animation
+  setupInteractions({
+    scene, camera, renderer, orbit,
+    gameBoy, cartridges,
+  });
 })();
 
-/* ---------------- resize ---------------- */
+/* ------------------------------------------------------------------
+   Resize + render loop
+   ------------------------------------------------------------------ */
 function onResize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -107,9 +118,8 @@ function onResize() {
 window.addEventListener('resize', onResize);
 onResize();
 
-/* ---------------- loop ---------------- */
 function tick() {
-  controls.update();
+  orbit.update();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
