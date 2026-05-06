@@ -36,8 +36,8 @@ export function setupInteractions({
   refreshGbBox();
   refreshSlotWorld();
 
-  const SNAP_RADIUS = 0.22;       // distance to slot at which snap kicks in
-  const SNAP_LERP   = 0.45;       // how aggressively to pull toward slot
+  const SNAP_RADIUS = 0.45;       // distance at which snap kicks in (forgiving)
+  const UNSNAP_RADIUS = 0.65;     // must drag past this distance to release
 
   const drag = new DragControls(cartridges, camera, canvas);
   drag.transformGroup = true;
@@ -54,26 +54,25 @@ export function setupInteractions({
 
   drag.addEventListener('drag', (e) => {
     const p = e.object.position;
-
-    // 1) Snap to the cart-slot anchor when close enough
+    const wasSnapped = e.object.userData.snapped === true;
     const dist = p.distanceTo(slotWorld);
-    if (dist < SNAP_RADIUS) {
-      // smoothly lerp toward slot world position
-      p.lerp(slotWorld, SNAP_LERP);
-      // align orientation so the cart "stands up" in the slot
-      e.object.rotation.x = 0;
-      e.object.rotation.y = 0;
-      e.object.rotation.z = 0;
+
+    // Hysteresis: once snapped, you have to drag past UNSNAP_RADIUS
+    // to release; otherwise SNAP_RADIUS pulls you in.
+    const threshold = wasSnapped ? UNSNAP_RADIUS : SNAP_RADIUS;
+
+    if (dist < threshold) {
+      // HARD snap — copy slot position directly so the cart visibly
+      // clips into place (no soft lerp that drifts on every frame)
+      p.copy(slotWorld);
+      e.object.rotation.set(0, 0, 0);
       e.object.userData.snapped = true;
       return;
     }
 
     e.object.userData.snapped = false;
 
-    // 2) Otherwise, push out of the Game Boy body so the cart can't
-    //    pass through the console. Simple AABB clamp: if the cart's
-    //    center sits inside the body's footprint AND below its top,
-    //    lift it up to rest on top of the body.
+    // Otherwise, prevent the cart from passing through the console
     if (
       p.x >= gbBox.min.x && p.x <= gbBox.max.x &&
       p.z >= gbBox.min.z && p.z <= gbBox.max.z
@@ -338,25 +337,28 @@ export function setupInteractions({
     const dx = e.clientX - downPos.x;
     const dy = e.clientY - downPos.y;
     downPos = null;
-    if (dx * dx + dy * dy > 25) return;
+    // forgiving click threshold (~12px) so tiny twitches still register
+    if (dx * dx + dy * dy > 144) return;
 
     const rect = canvas.getBoundingClientRect();
     pointer.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
     pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
 
-    const hits = raycaster.intersectObjects(buttons, true);
-    if (hits.length === 0) return;
-
-    let target = hits[0].object;
-    while (target && !target.userData.button) target = target.parent;
-    if (!target) return;
-
-    const kind = target.userData.button;
-    pressButton(target);
-
-    if (kind === 'start') {
-      if (!isBooted) powerOn(); else powerOff();
+    // Raycast against the entire Game Boy and walk the hit list to
+    // find the first one with a userData.button tag.
+    const hits = raycaster.intersectObject(gameBoy, true);
+    for (const hit of hits) {
+      let node = hit.object;
+      while (node && !node.userData.button) node = node.parent;
+      if (node && node.userData.button) {
+        const kind = node.userData.button;
+        pressButton(node);
+        if (kind === 'start') {
+          if (!isBooted) powerOn(); else powerOff();
+        }
+        return;
+      }
     }
   });
 

@@ -38,12 +38,13 @@ export function buildCartridgeBasket() {
     sheenColor: new THREE.Color(0x4a2a14),
   });
 
-  // sized to fit four upright cartridges side by side
-  const inW = 0.42;
-  const inL = 0.50;
-  const wallH = 0.16;
-  const wallT = 0.024;
-  const baseT = 0.020;
+  // Sized so 4 cartridges sit flat inside, labels facing up, with NO
+  // overlap so every label is fully readable from the top-down camera.
+  const inW = 0.32;       // basket interior width
+  const inL = 1.16;       // basket interior length (4 carts laid out along Z)
+  const wallH = 0.075;    // short walls — label visibility comes first
+  const wallT = 0.022;
+  const baseT = 0.018;
   const outW = inW + wallT * 2;
   const outL = inL + wallT * 2;
 
@@ -87,12 +88,11 @@ export function buildCartridgeBasket() {
   // ============================================================
   const cartridges = [];
 
-  // Real GBC cartridge proportions ~58×65×8mm. In our units (1=10cm)
-  // that's about 0.30 × 0.06 × 0.34. Slightly chunkier than spec so
-  // the labels read well at any zoom level.
-  const cartW = 0.30;
-  const cartH = 0.064;
-  const cartL = 0.34;
+  // Real GBC cartridge proportions ~58×65×8mm — scaled smaller here so
+  // 4 of them fit cleanly side-by-side in the basket.
+  const cartW = 0.28;
+  const cartH = 0.060;
+  const cartL = 0.26;
   const labelMargin = 0.05;
   const cartBodyMat = new THREE.MeshPhysicalMaterial({
     color: 0x1d1d1d,
@@ -159,12 +159,13 @@ export function buildCartridgeBasket() {
     label.position.z = cartL * 0.06;  // shifted toward the bottom of the cart
     cart.add(label);
 
-    // Stand the cart upright (label-up) inside the basket, leaning
-    // against the back wall, lined up with its neighbors.
+    // Laid flat in the basket, lined up along Z, with a small gap
+    // between each so all four labels are fully readable.
+    const gap = (inL - cartL * 4) / 3;
     cart.position.set(
-      -inW / 2 + (cartW * 0.55) + i * (cartW * 0.42),
+      0,                                              // centered X
       baseT + cartH / 2,
-      -inL * 0.05,
+      -inL / 2 + cartL / 2 + i * (cartL + gap),
     );
 
     group.add(cart);

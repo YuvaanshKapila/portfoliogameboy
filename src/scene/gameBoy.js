@@ -318,60 +318,68 @@ export function buildGameBoy() {
   gb.add(powerPort);
 
   // ============================================================
-  // CARTRIDGE SLOT — carved into the TOP FACE of the body
+  // CARTRIDGE SLOT — REAL recess carved into the top face
   //
-  // Sits flat on the top surface (y = D), pointing up. Two layered
-  // dark planes give the impression of a recess: an outer frame and
-  // an inner darker rectangle that reads as the slot opening. No
-  // 3D box pokes through the body sides — everything stays on the
-  // top face.
+  // A dark box drops down from the top surface into the body. Three
+  // visible parts:
+  //   - the outer dark recess box (cavity walls)
+  //   - the inner near-black floor (deepest part)
+  //   - a thin raised lip around the opening
   //
-  // An invisible Object3D anchor marks the snap target so the
-  // cartridges can lock into position when dragged near.
+  // Sits at the back-top portion of the device. The opening faces
+  // straight up, so a cartridge snapped into it visibly stands in
+  // the slot.
   // ============================================================
-  const slotOuterW = 0.60;
-  const slotOuterZ = 0.11;
-  const slotInnerW = 0.56;
-  const slotInnerZ = 0.07;
-  // place toward the back-top edge of the device
-  const slotCenterZ = -halfL + 0.13;
+  const slotW = 0.54;       // opening width (X)
+  const slotDepth = 0.08;   // opening Z extent on the top face
+  const slotCavityH = 0.10; // how far the cavity goes down into the body
+  const slotCenterZ = -halfL + 0.10;
 
-  // Outer frame — slightly raised dark rim around the opening
-  const slotFrame = new THREE.Mesh(
-    new THREE.PlaneGeometry(slotOuterW, slotOuterZ),
+  // The cavity itself — a dark box recessed below the body top
+  const slotCavity = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW, slotCavityH, slotDepth),
     new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
-      roughness: 0.65,
-      polygonOffset: true,
-      polygonOffsetFactor: -3,
-      polygonOffsetUnits: -3,
+      color: 0x040404, roughness: 0.9, metalness: 0,
     }),
   );
-  slotFrame.rotation.x = -Math.PI / 2;
-  slotFrame.position.set(0, D + 0.0008, slotCenterZ);
-  gb.add(slotFrame);
+  slotCavity.position.set(0, D - slotCavityH / 2, slotCenterZ);
+  gb.add(slotCavity);
 
-  // Inner opening — darker, suggests the cavity inside
-  const slotHole = new THREE.Mesh(
-    new THREE.PlaneGeometry(slotInnerW, slotInnerZ),
-    new THREE.MeshStandardMaterial({
-      color: 0x040404,
-      roughness: 0.95,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
-    }),
+  // Raised lip around the opening — thin frame in body color, sits
+  // flush with the top face, reads as the molded edge of the slot
+  const lipMat = new THREE.MeshStandardMaterial({
+    color: 0x141416, roughness: 0.7,
+  });
+  const lipT = 0.012;
+  const lipH = 0.004;
+  // front lip
+  const lipFront = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW + lipT * 2, lipH, lipT),
+    lipMat,
   );
-  slotHole.rotation.x = -Math.PI / 2;
-  slotHole.position.set(0, D + 0.0010, slotCenterZ);
-  gb.add(slotHole);
+  lipFront.position.set(0, D + lipH / 2, slotCenterZ + slotDepth / 2 + lipT / 2);
+  gb.add(lipFront);
+  // back lip
+  const lipBack = lipFront.clone();
+  lipBack.position.z = slotCenterZ - slotDepth / 2 - lipT / 2;
+  gb.add(lipBack);
+  // left lip
+  const lipLeft = new THREE.Mesh(
+    new THREE.BoxGeometry(lipT, lipH, slotDepth),
+    lipMat,
+  );
+  lipLeft.position.set(-slotW / 2 - lipT / 2, D + lipH / 2, slotCenterZ);
+  gb.add(lipLeft);
+  // right lip
+  const lipRight = lipLeft.clone();
+  lipRight.position.x = slotW / 2 + lipT / 2;
+  gb.add(lipRight);
 
-  // Snap anchor — invisible Object3D the cartridges align to.
-  // Positioned just above the slot so a snapped cart sits visibly
-  // protruding from the slot, ~half-inserted.
+  // Snap anchor — sits IN the slot. When a cart snaps here, its
+  // bottom half is inside the cavity and the label half pokes out.
   const cartSlotAnchor = new THREE.Object3D();
   cartSlotAnchor.name = 'cart-slot-anchor';
-  cartSlotAnchor.position.set(0, D + 0.18, slotCenterZ);
+  cartSlotAnchor.position.set(0, D + 0.10, slotCenterZ);
   gb.add(cartSlotAnchor);
 
   // ============================================================

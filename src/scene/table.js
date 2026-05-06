@@ -1,20 +1,27 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { makeWalnutMaterial } from '../utils/materials.js';
 
 /**
- * Subtle dark "floor" — a single matte black plane that catches the
- * shadows from the Game Boy and cartridge basket. With the scene's
- * black-space background, anything more elaborate (wooden grain,
- * etc.) would clash, so we keep this minimal.
+ * Warm walnut desk slab — the surface the Game Boy and basket sit on.
  */
 export function buildTable(scene) {
-  const geo = new THREE.PlaneGeometry(20, 20);
-  const mat = new THREE.ShadowMaterial({ opacity: 0.55 });
+  const top = 0.0;
+  const thickness = 0.18;
 
-  const floor = new THREE.Mesh(geo, mat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = -0.001;
-  floor.receiveShadow = true;
-  scene.add(floor);
+  const geo = new RoundedBoxGeometry(7.2, thickness, 4.6, 4, 0.04);
+  const mat = makeWalnutMaterial();
+  if (mat.map) {
+    mat.map.repeat.set(1.2, 0.8);
+    mat.map.offset.set(0.05, 0.2);
+    mat.map.needsUpdate = true;
+  }
 
-  return floor;
+  const desk = new THREE.Mesh(geo, mat);
+  desk.position.y = top - thickness / 2;
+  desk.receiveShadow = true;
+  desk.castShadow = false;
+  scene.add(desk);
+
+  return desk;
 }

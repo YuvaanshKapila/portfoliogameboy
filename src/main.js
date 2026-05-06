@@ -40,21 +40,12 @@ function makeSpaceBackground() {
   c.width = c.height = 1024;
   const ctx = c.getContext('2d');
   const g = ctx.createRadialGradient(512, 512, 0, 512, 512, 720);
-  g.addColorStop(0.0, '#181420');
-  g.addColorStop(0.55, '#08070c');
+  g.addColorStop(0.0, '#1d1822');
+  g.addColorStop(0.6, '#0a080d');
   g.addColorStop(1.0, '#000000');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 1024, 1024);
-  // sparse star dust
-  for (let i = 0; i < 220; i++) {
-    const x = Math.random() * 1024;
-    const y = Math.random() * 1024;
-    const r = Math.random() * 1.4 + 0.2;
-    ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${200 + Math.random() * 55}, 255, ${Math.random() * 0.6 + 0.2})`;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  // (no stars — clean dark gradient only)
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
