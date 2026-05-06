@@ -318,68 +318,48 @@ export function buildGameBoy() {
   gb.add(powerPort);
 
   // ============================================================
-  // CARTRIDGE SLOT — REAL recess carved into the top face
+  // CARTRIDGE SLOT — at the BACK-TOP edge of the device
   //
-  // A dark box drops down from the top surface into the body. Three
-  // visible parts:
-  //   - the outer dark recess box (cavity walls)
-  //   - the inner near-black floor (deepest part)
-  //   - a thin raised lip around the opening
+  // Real GBC carts slide in from above-behind. We mimic that:
+  // a slim dark recess on the back-top edge of the body, plus a
+  // snap anchor positioned high above the back edge so a snapped
+  // cart stands tall and visible — label facing the camera, just
+  // like the cart in the user's reference photo.
   //
-  // Sits at the back-top portion of the device. The opening faces
-  // straight up, so a cartridge snapped into it visibly stands in
-  // the slot.
+  // Nothing on the top FACE of the body — no more dark rectangle
+  // overlapping the screen area.
   // ============================================================
-  const slotW = 0.54;       // opening width (X)
-  const slotDepth = 0.08;   // opening Z extent on the top face
-  const slotCavityH = 0.10; // how far the cavity goes down into the body
-  const slotCenterZ = -halfL + 0.10;
+  const slotW = 0.56;
+  const slotZ = 0.045;      // narrow strip along Z, sits at the very back edge
+  const slotH = 0.06;       // visible opening height on the back edge
 
-  // The cavity itself — a dark box recessed below the body top
-  const slotCavity = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW, slotCavityH, slotDepth),
+  // The visible slot recess — small dark box poking out the back-top
+  // edge of the body.
+  const slotRecess = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW, slotH, slotZ),
     new THREE.MeshStandardMaterial({
-      color: 0x040404, roughness: 0.9, metalness: 0,
+      color: 0x0a0a0a, roughness: 0.9, metalness: 0,
     }),
   );
-  slotCavity.position.set(0, D - slotCavityH / 2, slotCenterZ);
-  gb.add(slotCavity);
+  slotRecess.position.set(0, D - slotH / 2 + 0.001, -halfL + slotZ / 2 - 0.005);
+  gb.add(slotRecess);
 
-  // Raised lip around the opening — thin frame in body color, sits
-  // flush with the top face, reads as the molded edge of the slot
-  const lipMat = new THREE.MeshStandardMaterial({
-    color: 0x141416, roughness: 0.7,
-  });
-  const lipT = 0.012;
-  const lipH = 0.004;
-  // front lip
-  const lipFront = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW + lipT * 2, lipH, lipT),
-    lipMat,
+  // Inner darker channel — depth cue
+  const slotChannel = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW * 0.93, slotH * 0.55, slotZ * 0.6),
+    new THREE.MeshStandardMaterial({
+      color: 0x020202, roughness: 0.95, metalness: 0,
+    }),
   );
-  lipFront.position.set(0, D + lipH / 2, slotCenterZ + slotDepth / 2 + lipT / 2);
-  gb.add(lipFront);
-  // back lip
-  const lipBack = lipFront.clone();
-  lipBack.position.z = slotCenterZ - slotDepth / 2 - lipT / 2;
-  gb.add(lipBack);
-  // left lip
-  const lipLeft = new THREE.Mesh(
-    new THREE.BoxGeometry(lipT, lipH, slotDepth),
-    lipMat,
-  );
-  lipLeft.position.set(-slotW / 2 - lipT / 2, D + lipH / 2, slotCenterZ);
-  gb.add(lipLeft);
-  // right lip
-  const lipRight = lipLeft.clone();
-  lipRight.position.x = slotW / 2 + lipT / 2;
-  gb.add(lipRight);
+  slotChannel.position.set(0, D - slotH / 2 + 0.005, -halfL + slotZ / 2);
+  gb.add(slotChannel);
 
-  // Snap anchor — sits IN the slot. When a cart snaps here, its
-  // bottom half is inside the cavity and the label half pokes out.
+  // Snap anchor — sits high above the back-top edge so a snapped
+  // cart stands upright in the slot, mostly visible above the device.
+  // (Local space — interactions.js converts to world.)
   const cartSlotAnchor = new THREE.Object3D();
   cartSlotAnchor.name = 'cart-slot-anchor';
-  cartSlotAnchor.position.set(0, D + 0.10, slotCenterZ);
+  cartSlotAnchor.position.set(0, D + 0.22, -halfL + 0.02);
   gb.add(cartSlotAnchor);
 
   // ============================================================

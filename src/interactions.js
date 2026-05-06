@@ -36,8 +36,9 @@ export function setupInteractions({
   refreshGbBox();
   refreshSlotWorld();
 
-  const SNAP_RADIUS = 0.45;       // distance at which snap kicks in (forgiving)
-  const UNSNAP_RADIUS = 0.65;     // must drag past this distance to release
+  const SNAP_RADIUS = 0.55;       // magnetic pull radius (forgiving)
+  const UNSNAP_RADIUS = 0.85;     // must drag past this to break the snap
+  const SNAP_LERP    = 0.30;      // magnetic strength (per drag event)
 
   const drag = new DragControls(cartridges, camera, canvas);
   drag.transformGroup = true;
@@ -52,33 +53,58 @@ export function setupInteractions({
     refreshGbBox();
   });
 
-  drag.addEventListener('drag', (e) => {
-    const p = e.object.position;
-    const wasSnapped = e.object.userData.snapped === true;
-    const dist = p.distanceTo(slotWorld);
+  // reusable buffers
+  const _cartWorld = new THREE.Vector3();
+  const _targetLocal = new THREE.Vector3();
 
-    // Hysteresis: once snapped, you have to drag past UNSNAP_RADIUS
-    // to release; otherwise SNAP_RADIUS pulls you in.
+  drag.addEventListener('drag', (e) => {
+    const wasSnapped = e.object.userData.snapped === true;
+
+    // Crucial: the cart sits inside cartGroup, so e.object.position
+    // is in cartGroup's LOCAL space. slotWorld is WORLD space. We
+    // have to compare in world space — getWorldPosition() walks the
+    // parent chain to compute it.
+    e.object.getWorldPosition(_cartWorld);
+    const dist = _cartWorld.distanceTo(slotWorld);
+
     const threshold = wasSnapped ? UNSNAP_RADIUS : SNAP_RADIUS;
 
     if (dist < threshold) {
-      // HARD snap — copy slot position directly so the cart visibly
-      // clips into place (no soft lerp that drifts on every frame)
-      p.copy(slotWorld);
-      e.object.rotation.set(0, 0, 0);
+      // Magnetic pull: lerp the cart's world position toward the slot
+      // each drag event. Smooth attraction rather than an instant snap.
+      const newWorld = _cartWorld.clone().lerp(slotWorld, SNAP_LERP);
+
+      // Convert the new world position back into cartGroup-local space
+      _targetLocal.copy(newWorld);
+      if (e.object.parent) e.object.parent.worldToLocal(_targetLocal);
+      e.object.position.copy(_targetLocal);
+
+      // Tilt to standing-upright: rotate -90° around X so the label
+      // face (originally +Y) faces +Z (toward the camera).
+      const standT = 1 - Math.min(dist / SNAP_RADIUS, 1);  // 0..1
+      e.object.rotation.set(-Math.PI / 2 * standT, 0, 0);
+
       e.object.userData.snapped = true;
       return;
     }
 
     e.object.userData.snapped = false;
+    e.object.rotation.set(
+      THREE.MathUtils.degToRad(-4),
+      0,
+      THREE.MathUtils.degToRad(2),
+    );
 
-    // Otherwise, prevent the cart from passing through the console
+    // Anti-pass-through: keep the cart on top of the body if it
+    // wanders into the body's footprint (world space).
     if (
-      p.x >= gbBox.min.x && p.x <= gbBox.max.x &&
-      p.z >= gbBox.min.z && p.z <= gbBox.max.z
+      _cartWorld.x >= gbBox.min.x && _cartWorld.x <= gbBox.max.x &&
+      _cartWorld.z >= gbBox.min.z && _cartWorld.z <= gbBox.max.z
     ) {
-      const minY = gbBox.max.y + 0.04;
-      if (p.y < minY) p.y = minY;
+      const minWorldY = gbBox.max.y + 0.04;
+      if (_cartWorld.y < minWorldY) {
+        e.object.position.y += minWorldY - _cartWorld.y;
+      }
     }
   });
 

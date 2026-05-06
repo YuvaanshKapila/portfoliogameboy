@@ -40,11 +40,11 @@ export function buildCartridgeBasket() {
 
   // Sized so 4 cartridges sit flat inside, labels facing up, with NO
   // overlap so every label is fully readable from the top-down camera.
-  const inW = 0.32;       // basket interior width
-  const inL = 1.16;       // basket interior length (4 carts laid out along Z)
-  const wallH = 0.075;    // short walls — label visibility comes first
-  const wallT = 0.022;
-  const baseT = 0.018;
+  const inW = 0.46;       // basket interior width  (scaled up 1.4x)
+  const inL = 1.65;       // basket interior length (scaled up 1.4x)
+  const wallH = 0.10;     // short walls — label visibility comes first
+  const wallT = 0.024;
+  const baseT = 0.020;
   const outW = inW + wallT * 2;
   const outL = inL + wallT * 2;
 
@@ -88,11 +88,10 @@ export function buildCartridgeBasket() {
   // ============================================================
   const cartridges = [];
 
-  // Real GBC cartridge proportions ~58×65×8mm — scaled smaller here so
-  // 4 of them fit cleanly side-by-side in the basket.
-  const cartW = 0.28;
-  const cartH = 0.060;
-  const cartL = 0.26;
+  // Cartridges scaled up ~1.4x so they read well at any zoom level.
+  const cartW = 0.40;
+  const cartH = 0.085;
+  const cartL = 0.38;
   const labelMargin = 0.05;
   const cartBodyMat = new THREE.MeshPhysicalMaterial({
     color: 0x1d1d1d,
