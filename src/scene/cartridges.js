@@ -118,7 +118,17 @@ export function buildCartridgeBasket() {
     cart.userData.kind = 'cartridge';
     cart.userData.title = title;
 
-    // Side ridges (molded "fins") — children of the cart mesh
+    // CRITICAL: every child mesh below has raycast disabled. Without
+    // this, the labels/ridges sit slightly above the cart body and
+    // get hit by the raycaster FIRST. DragControls then picks up
+    // the child mesh, drags only that, and the cart visibly 'splits'
+    // — the body stays put while the label/ridge moves. With
+    // raycast disabled, only the cart body itself is hittable, so
+    // DragControls picks up the body and the children follow as
+    // its children automatically.
+    const noRaycast = function () { /* skip in raycast */ };
+
+    // Side ridges (molded "fins")
     const ridgeMat = new THREE.MeshStandardMaterial({
       color: 0x131313, roughness: 0.6,
     });
@@ -128,21 +138,21 @@ export function buildCartridgeBasket() {
         ridgeMat,
       );
       ridge.position.set(0, cartH / 2 - 0.006, -cartL / 2 + 0.04 + r * 0.02);
+      ridge.raycast = noRaycast;
       cart.add(ridge);
     }
 
-    // Top embossed oval (Nintendo GAME BOY™ area on a real cart)
+    // Top embossed oval
     const embossOval = new THREE.Mesh(
       new RoundedBoxGeometry(cartW * 0.7, 0.005, 0.07, 4, 0.018),
       ridgeMat,
     );
     embossOval.position.set(0, cartH / 2 - 0.001, -cartL / 2 + 0.10);
+    embossOval.raycast = noRaycast;
     cart.add(embossOval);
 
-    // Sticker label on BOTH +Y and -Y faces so it reads correctly
-    // both flat-in-basket and standing-in-slot (where the cart is
-    // rotated -90° around X and the originally-bottom face is the
-    // camera-facing one).
+    // Sticker labels on BOTH +Y and -Y faces — readable flat in the
+    // basket and standing in the slot (cart rotates -90° X to stand).
     const labelTex = makeCartridgeLabel(title, accent);
     const labelMat = new THREE.MeshStandardMaterial({
       map: labelTex,
@@ -158,12 +168,14 @@ export function buildCartridgeBasket() {
     labelTop.rotation.x = -Math.PI / 2;
     labelTop.position.y = cartH / 2 + 0.001;
     labelTop.position.z = cartL * 0.06;
+    labelTop.raycast = noRaycast;
     cart.add(labelTop);
 
     const labelBottom = new THREE.Mesh(labelGeo, labelMat);
     labelBottom.rotation.x = Math.PI / 2;
     labelBottom.position.y = -cartH / 2 - 0.001;
     labelBottom.position.z = cartL * 0.06;
+    labelBottom.raycast = noRaycast;
     cart.add(labelBottom);
 
     // Laid flat in the basket, lined up along Z, with a small gap
