@@ -619,6 +619,39 @@ export function setupInteractions({
     step();
   }
 
+  // ---------------- Hover highlight on cartridges ----------------
+  // Subtle emissive boost when the pointer is over a cart in the
+  // basket. Tells the user 'this is interactive' without screaming.
+  let hoveredCart = null;
+  const HOVER_COLOR = new THREE.Color(0xffffff);
+  canvas.addEventListener('pointermove', (e) => {
+    // Skip while actively pressing (likely a drag in progress)
+    if (downPos) return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+    pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+
+    const hits = raycaster.intersectObjects(cartridges, true);
+    let cart = null;
+    if (hits.length > 0) {
+      cart = hits[0].object;
+      while (cart && !cartridges.includes(cart)) cart = cart.parent;
+    }
+
+    if (cart === hoveredCart) return;
+
+    if (hoveredCart && hoveredCart.material) {
+      hoveredCart.material.emissiveIntensity = 0;
+    }
+    if (cart && cart.material) {
+      cart.material.emissive.copy(HOVER_COLOR);
+      cart.material.emissiveIntensity = 0.18;
+    }
+    hoveredCart = cart;
+    canvas.style.cursor = cart ? 'pointer' : '';
+  });
+
   // ---------------- Pointer click vs drag ----------------
   let downPos = null;
   canvas.addEventListener('pointerdown', (e) => {

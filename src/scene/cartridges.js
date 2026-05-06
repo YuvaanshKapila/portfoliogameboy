@@ -94,11 +94,15 @@ export function buildCartridgeBasket() {
   const cartH = 0.085;
   const cartL = 0.38;
   const labelMargin = 0.05;
-  const cartBodyMat = new THREE.MeshPhysicalMaterial({
+  // Base material — each cart gets its own clone so hover-highlight
+  // can change one without affecting the others.
+  const cartBodyMatBase = new THREE.MeshPhysicalMaterial({
     color: 0x1d1d1d,
     roughness: 0.55,
     clearcoat: 0.45,
     clearcoatRoughness: 0.35,
+    emissive: 0x000000,
+    emissiveIntensity: 0,
   });
 
   for (let i = 0; i < CART_TITLES.length; i++) {
@@ -110,7 +114,7 @@ export function buildCartridgeBasket() {
     // mesh + its children all move together.
     const cart = new THREE.Mesh(
       new RoundedBoxGeometry(cartW, cartH, cartL, 6, 0.014),
-      cartBodyMat,
+      cartBodyMatBase.clone(),
     );
     cart.name = `cartridge-${title.toLowerCase().replace(/\s+/g, '-')}`;
     cart.castShadow = true;
