@@ -160,11 +160,11 @@ export function setupInteractions({
   });
 
   // Refs for boot animation
-  let led = null;
   let lcd = null;
+  let powerInd = null;
   gameBoy.traverse(o => {
-    if (o.name === 'led') led = o;
     if (o.name === 'lcd') lcd = o;
+    if (o.name === 'power-indicator') powerInd = o;
   });
 
   const lcdOffMaterial = lcd ? lcd.material : null;
@@ -494,6 +494,12 @@ export function setupInteractions({
     isBooted = true;
     bootStart = performance.now();
 
+    // Light the red triangle on the POWER indicator
+    if (powerInd && powerInd.material) {
+      powerInd.material.emissiveIntensity = 2.5;
+      powerInd.material.needsUpdate = true;
+    }
+
     // Start with the boot animation; once it's done, refreshLcd will
     // either keep the boot screen or swap to the inserted cart's
     // content depending on whether one is snapped in.
@@ -509,6 +515,9 @@ export function setupInteractions({
     isBooted = false;
     bootStart = null;
 
+    if (powerInd && powerInd.material) {
+      powerInd.material.emissiveIntensity = 0;
+    }
     refreshLcd();
   }
 

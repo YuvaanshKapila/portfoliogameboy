@@ -683,11 +683,17 @@ export function makeNintendoWordmarkMaterial(name = 'Yuvaansh') {
 
 // ---------------------------------------------------------------- POWER indicator
 /**
- * Vertical "POWER" stack: red dot, then three white chevrons → → →,
- * then "POWER" text below. Sits on the left side of the bezel.
+ * Vertical "POWER" stack: red triangle, three chevrons, "POWER" text.
+ * Sits on the left side of the bezel.
+ *
+ * The returned material has an emissive map that lights up ONLY the
+ * triangle, so when interactions sets emissiveIntensity > 0 the
+ * triangle glows red without making the chevrons or text glow.
  */
 export function makePowerIndicatorMaterial() {
   const W = 256, H = 512;
+
+  // ----- diffuse (the visible art on the bezel) -----
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
@@ -702,7 +708,7 @@ export function makePowerIndicatorMaterial() {
   ctx.closePath();
   ctx.fill();
 
-  // three white-ish chevrons (right-pointing)
+  // three white-ish chevrons
   ctx.strokeStyle = '#e8e8e8';
   ctx.lineWidth = 8;
   ctx.lineCap = 'round';
@@ -722,7 +728,40 @@ export function makePowerIndicatorMaterial() {
   ctx.textAlign = 'left';
   ctx.fillText('POWER', 50, 230);
 
-  return makeDecalMaterial(c);
+  // ----- emissive map: only the triangle pixels are bright red -----
+  const ec = document.createElement('canvas');
+  ec.width = W; ec.height = H;
+  const ectx = ec.getContext('2d');
+  ectx.clearRect(0, 0, W, H);
+  ectx.fillStyle = '#ff5050';
+  ectx.beginPath();
+  ectx.moveTo(60, 80);
+  ectx.lineTo(60, 160);
+  ectx.lineTo(125, 120);
+  ectx.closePath();
+  ectx.fill();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+
+  const emTex = new THREE.CanvasTexture(ec);
+  emTex.colorSpace = THREE.SRGBColorSpace;
+  emTex.anisotropy = 8;
+
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    emissiveMap: emTex,
+    emissive: new THREE.Color(0xff3030),
+    emissiveIntensity: 0,        // dark by default; powerOn ramps it up
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.7,
+    metalness: 0,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
+  });
 }
 
 // ---------------------------------------------------------------- "▲ COMM" indicator

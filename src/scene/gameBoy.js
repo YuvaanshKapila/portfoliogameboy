@@ -86,6 +86,7 @@ export function buildGameBoy() {
     new THREE.PlaneGeometry(0.07, 0.16),
     makePowerIndicatorMaterial(),
   );
+  powerInd.name = 'power-indicator';
   powerInd.rotation.x = -Math.PI / 2;
   powerInd.position.set(-0.265, decalY, bezelZ - 0.18);
   gb.add(powerInd);
