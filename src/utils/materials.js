@@ -192,22 +192,24 @@ const CART_CONTENT = {
     '  JIRA + GITHUB + PRS',
     '',
     '> HOMELAB CLOUD',
-    '  + LSTM STOCK MODEL',
+    '  PERSONAL STORAGE',
+    '',
+    '> LSTM STOCK MODEL',
+    '  NEURAL NET PRICE',
+    '  PREDICTION',
     '',
     '> FERDINAND',
     '  VOICE-CONTROL OS',
     '',
     '> FISH ALERT',
     '  SCAM PROTECTION',
-    '',
-    'TAP SCREEN -> GITHUB',
   ],
 };
 
 export const CART_VISIBLE_LINES = 9;
 export function getCartContent(title) { return CART_CONTENT[title] || null; }
 
-export function makeCartridgeScreenMaterial(title, scrollOffset = 0) {
+export function makeCartridgeScreenMaterial(title, scrollOffset = 0, selection = 0) {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 1024;
   const ctx = c.getContext('2d');
@@ -231,7 +233,7 @@ export function makeCartridgeScreenMaterial(title, scrollOffset = 0) {
 
   // Body — special-cased per cart
   if (title === 'CONTACT') {
-    drawContactBody(ctx);
+    drawContactBody(ctx, selection);
   } else {
     drawListBody(ctx, CART_CONTENT[title] || ['NO DATA'], scrollOffset);
   }
@@ -292,8 +294,9 @@ function drawListBody(ctx, items, scrollOffset = 0) {
   if (off + VISIBLE < items.length)  ctx.fillText('▼', 950, 880);
 }
 
-function drawContactBody(ctx) {
-  // ===== GitHub block (top half) =====
+function drawContactBody(ctx, selection = 0) {
+  // ===== GitHub block (top, index 0) =====
+  if (selection === 0) drawSelectionHighlight(ctx, 70, 250, 884, 230);
   drawGithubIcon(ctx, 130, 280, 160);
   ctx.fillStyle = '#1d1d1d';
   ctx.font = `700 56px ${F_LABEL}`;
@@ -305,22 +308,44 @@ function drawContactBody(ctx) {
 
   // divider
   ctx.fillStyle = '#1d1d1d';
-  ctx.fillRect(140, 510, 744, 3);
+  ctx.fillRect(140, 540, 744, 3);
 
-  // ===== LinkedIn block (bottom half) =====
-  drawLinkedInIcon(ctx, 130, 580, 160);
+  // ===== LinkedIn block (bottom, index 1) =====
+  if (selection === 1) drawSelectionHighlight(ctx, 70, 565, 884, 230);
+  drawLinkedInIcon(ctx, 130, 595, 160);
   ctx.fillStyle = '#1d1d1d';
   ctx.font = `700 56px ${F_LABEL}`;
-  ctx.fillText('LINKEDIN', 320, 620);
+  ctx.fillText('LINKEDIN', 320, 635);
   ctx.font = `600 38px ${F_LABEL}`;
   ctx.fillStyle = '#444444';
-  ctx.fillText('/IN/YUVAANSH-KAPILA', 320, 680);
+  ctx.fillText('/IN/YUVAANSH-KAPILA', 320, 695);
 
   // hint
   ctx.font = `600 32px ${F_LABEL}`;
   ctx.fillStyle = '#777';
   ctx.textAlign = 'center';
-  ctx.fillText('TAP TO OPEN', 512, 920);
+  ctx.fillText('D-PAD: SELECT   A: OPEN', 512, 920);
+}
+
+function drawSelectionHighlight(ctx, x, y, w, h) {
+  // Yellow fill + black border — reads as a selected menu item, like
+  // the cursor box in a Game Boy menu.
+  ctx.fillStyle = '#ffe14a';
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 18);
+  ctx.fill();
+  ctx.strokeStyle = '#1d1d1d';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+
+  // Small ▶ cursor on the left edge
+  ctx.fillStyle = '#1d1d1d';
+  ctx.beginPath();
+  ctx.moveTo(x + 18, y + h / 2 - 18);
+  ctx.lineTo(x + 18, y + h / 2 + 18);
+  ctx.lineTo(x + 42, y + h / 2);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /* ----- Pixelated GitHub octocat icon ----- */

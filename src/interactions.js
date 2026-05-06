@@ -6,8 +6,13 @@ import {
 
 const CART_URLS = {
   PROJECTS: 'https://github.com/YuvaanshKapila?tab=repositories',
-  CONTACT:  'https://github.com/YuvaanshKapila',
 };
+
+// CONTACT cart has multiple URLs selectable via the D-pad
+const CONTACT_URLS = [
+  'https://github.com/YuvaanshKapila',
+  'https://www.linkedin.com/in/yuvaansh-kapila-3b4bab364/',
+];
 
 /**
  * Wires up all input:
@@ -192,9 +197,10 @@ export function setupInteractions({
   }
 
   function rebuildCartMaterial(cart) {
-    const off = cart.userData.scrollOffset || 0;
+    const off = cart.userData.scrollOffset   || 0;
+    const sel = cart.userData.selectionIndex || 0;
     cart.userData.contentMaterial = makeCartridgeScreenMaterial(
-      cart.userData.title || 'CART', off,
+      cart.userData.title || 'CART', off, sel,
     );
   }
 
@@ -218,8 +224,22 @@ export function setupInteractions({
   function scrollCurrentCart(direction) {
     if (!currentCart) return;
     const title = currentCart.userData.title;
+
+    // CONTACT cart: D-pad toggles which contact is selected.
+    if (title === 'CONTACT') {
+      const cur = currentCart.userData.selectionIndex || 0;
+      const next = direction > 0 ? 1 : 0;
+      if (next === cur) return;
+      currentCart.userData.selectionIndex = next;
+      rebuildCartMaterial(currentCart);
+      refreshLcd();
+      playButtonClick();
+      return;
+    }
+
+    // List carts: scroll
     const items = getCartContent(title);
-    if (!items) return;  // CONTACT has no scrollable list
+    if (!items) return;
     const max = Math.max(0, items.length - CART_VISIBLE_LINES);
     const cur = currentCart.userData.scrollOffset || 0;
     const next = Math.max(0, Math.min(cur + direction, max));
@@ -231,7 +251,13 @@ export function setupInteractions({
 
   function openCurrentCartUrl() {
     if (!currentCart) return;
-    const url = CART_URLS[currentCart.userData.title];
+    const title = currentCart.userData.title;
+    if (title === 'CONTACT') {
+      const sel = currentCart.userData.selectionIndex || 0;
+      openUrl(CONTACT_URLS[sel]);
+      return;
+    }
+    const url = CART_URLS[title];
     if (url) openUrl(url);
   }
 
@@ -594,29 +620,14 @@ export function setupInteractions({
     pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
 
-    // 1) LCD click — opens URLs when a cart's content is showing
+    // 1) LCD click — opens the currently-selected URL for the cart.
+    //    For CONTACT, the user picks GitHub vs LinkedIn via the
+    //    D-pad; clicking the screen just opens whichever is selected.
     if (lcd && currentCart) {
       const lcdHits = raycaster.intersectObject(lcd, false);
       if (lcdHits.length > 0) {
-        const title = currentCart.userData.title;
-        const uv = lcdHits[0].uv;
-        if (title === 'PROJECTS') {
-          openUrl('https://github.com/YuvaanshKapila?tab=repositories');
-          return;
-        }
-        if (title === 'CONTACT') {
-          // top half of the screen → GitHub, bottom half → LinkedIn
-          // (UV.y in three.js: 0 is bottom of texture, 1 is top.
-          //  Our texture has GitHub drawn near the top of the canvas
-          //  which becomes the BOTTOM of UV space, so we flip.)
-          const y = uv ? uv.y : 0.5;
-          if (y > 0.5) {
-            openUrl('https://github.com/YuvaanshKapila');
-          } else {
-            openUrl('https://www.linkedin.com/in/yuvaansh-kapila-3b4bab364/');
-          }
-          return;
-        }
+        openCurrentCartUrl();
+        return;
       }
     }
 
