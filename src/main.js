@@ -45,15 +45,15 @@ const camera = new THREE.PerspectiveCamera(
   0.05,
   100,
 );
-const camDist = 3.4;
-const camPolar = THREE.MathUtils.degToRad(18);  // 0 = straight down, 90 = horizon
+const camDist = 3.0;
+const camPolar = THREE.MathUtils.degToRad(8);  // 0 = straight down, 90 = horizon
 const camAzim  = THREE.MathUtils.degToRad(0);
 camera.position.set(
   camDist * Math.sin(camPolar) * Math.sin(camAzim),
   camDist * Math.cos(camPolar),
   camDist * Math.sin(camPolar) * Math.cos(camAzim),
 );
-camera.lookAt(0, 0.15, 0);
+camera.lookAt(0, 0.10, 0);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -62,7 +62,7 @@ controls.minDistance = 1.6;
 controls.maxDistance = 5.5;
 controls.minPolarAngle = THREE.MathUtils.degToRad(0);    // straight down allowed
 controls.maxPolarAngle = THREE.MathUtils.degToRad(72);
-controls.target.set(0, 0.15, 0);
+controls.target.set(0, 0.10, 0);
 controls.enablePan = false;
 
 /* ---------------- build the scene ---------------- */
@@ -77,11 +77,9 @@ buildTable(scene);
   }
 
   const gameBoy = buildGameBoy();
-  // Tip the device a few degrees forward so the top edge (with the power
-  // switch) catches the light and is clearly visible from above.
-  gameBoy.rotation.y = THREE.MathUtils.degToRad(-6);
-  gameBoy.rotation.x = THREE.MathUtils.degToRad(-6);  // top edge tilts up
-  gameBoy.position.set(0, 0, 0.05);
+  // Lying completely flat on the desk. No tilt — the camera does the work.
+  gameBoy.rotation.set(0, 0, 0);
+  gameBoy.position.set(0, 0, 0);
   scene.add(gameBoy);
 })();
 

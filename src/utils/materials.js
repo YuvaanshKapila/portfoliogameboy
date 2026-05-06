@@ -1,54 +1,52 @@
 import * as THREE from 'three';
 
 /**
- * Shared materials and procedural textures for the DMG-01 still life.
+ * Materials and procedural textures for the Kiwi Game Boy Color.
  *
- * Font choices match the real Game Boy:
- *   - Wordmark "Nintendo® GAME BOY™" : Gill Sans Italic
- *       → web fallback Cabin Bold Italic (very close)
- *   - Tiny silkscreen labels (BATTERY / OFF·ON / PHONES / START / SELECT
- *     / DOT MATRIX WITH STEREO SOUND): Futura
- *       → web fallback Jost (geometric humanist, near-identical)
- *   - Button A / B letters molded into the face buttons: Italic of same
- *     family as wordmark (Gill Sans-style italic)
+ * Reference (Kiwi GBC):
+ *   - Body: bright kiwi-lime green plastic, slight clearcoat sheen
+ *   - Bezel: matte black, slightly rounded
+ *   - Buttons: charcoal translucent gray (NOT maroon — that's DMG)
+ *   - Wordmarks: white italic "GAME BOY", rainbow "COLOR", red Nintendo
+ *   - Speaker: dot-grid of small round holes in bottom-right corner
  *
- * All canvas-textures are built at high resolution so they stay crisp
- * when the camera zooms in. Anisotropy is bumped up to 16 wherever
- * the texture sits at a glancing angle to the camera.
+ * Font choices for canvas textures:
+ *   - Wordmarks  : Cabin Bold Italic (closest free analog of Gill Sans)
+ *   - Tiny silks : Jost (closest free analog of Futura)
  */
 
-// Font stacks reused across canvas helpers.
 const F_WORDMARK = '"Cabin", "Gill Sans MT", "Gill Sans", "Trebuchet MS", sans-serif';
 const F_LABEL    = '"Jost", "Futura", "Century Gothic", "Trebuchet MS", sans-serif';
+const F_DISPLAY  = '"Cabin", "Bowlby One", "Cooper Std", "Times New Roman", serif';
 
 // ---------------------------------------------------------------- materials
-export const matBodyLight = new THREE.MeshPhysicalMaterial({
-  color: 0xc7c4b8,
-  roughness: 0.62,
-  clearcoat: 0.32,
-  clearcoatRoughness: 0.55,
-  reflectivity: 0.18,
+export const matBodyKiwi = new THREE.MeshPhysicalMaterial({
+  color: 0x9bd84a,
+  roughness: 0.45,
+  clearcoat: 0.55,
+  clearcoatRoughness: 0.32,
+  reflectivity: 0.25,
 });
 
 export const matBezel = new THREE.MeshPhysicalMaterial({
-  color: 0x1c1a16,
+  color: 0x141414,
   roughness: 0.55,
   clearcoat: 0.5,
-  clearcoatRoughness: 0.32,
+  clearcoatRoughness: 0.3,
 });
 
-export const matMaroon = new THREE.MeshPhysicalMaterial({
-  color: 0x6e1f3c,
-  roughness: 0.45,
-  clearcoat: 0.55,
-  clearcoatRoughness: 0.28,
+export const matButtonGrey = new THREE.MeshPhysicalMaterial({
+  color: 0x2c2a28,
+  roughness: 0.4,
+  clearcoat: 0.6,
+  clearcoatRoughness: 0.25,
+  reflectivity: 0.2,
 });
 
-export const matBlackPlastic = new THREE.MeshPhysicalMaterial({
-  color: 0x141210,
-  roughness: 0.5,
-  clearcoat: 0.4,
-  clearcoatRoughness: 0.4,
+export const matRubberMatte = new THREE.MeshStandardMaterial({
+  color: 0x1d1c1a,
+  roughness: 0.92,
+  metalness: 0.0,
 });
 
 export const matSwitchKnob = new THREE.MeshPhysicalMaterial({
@@ -57,13 +55,7 @@ export const matSwitchKnob = new THREE.MeshPhysicalMaterial({
   clearcoat: 0.25,
 });
 
-export const matRubberMatte = new THREE.MeshStandardMaterial({
-  color: 0x171511,
-  roughness: 0.92,
-  metalness: 0.0,
-});
-
-// ---------------------------------------------------------------- walnut
+// ---------------------------------------------------------------- walnut desk
 export function makeWalnutMaterial() {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 1024;
@@ -85,7 +77,6 @@ export function makeWalnutMaterial() {
       : `rgba(120, 70, 35, ${alpha * 0.6})`;
     ctx.fillRect(0, y, 1024, 0.6 + Math.random() * 1.6);
   }
-
   for (let i = 0; i < 6; i++) {
     const x = Math.random() * 1024;
     const y = Math.random() * 1024;
@@ -96,7 +87,6 @@ export function makeWalnutMaterial() {
     ctx.fillStyle = g;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
-
   const img = ctx.getImageData(0, 0, 1024, 1024);
   for (let i = 0; i < img.data.length; i += 4) {
     const n = (Math.random() - 0.5) * 18;
@@ -122,162 +112,197 @@ export function makeWalnutMaterial() {
   });
 }
 
-// ---------------------------------------------------------------- screen
+// ---------------------------------------------------------------- screen (LCD off)
 /**
- * The greenish LCD with the iconic boot logo. Drawn larger and with
- * the proper "▶ NINTENDO" mark so it's legible from the top-down camera.
+ * GBC LCD when powered off — a dark grayish surface with the
+ * faintest pixel-grid texture and a glassy reflection sweep.
  */
 export function makeScreenMaterial() {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 920;
   const ctx = c.getContext('2d');
 
-  // base LCD wash
+  // dark cool gray base
   const g = ctx.createLinearGradient(0, 0, 0, 920);
-  g.addColorStop(0, '#a8b18a');
-  g.addColorStop(1, '#7c8856');
+  g.addColorStop(0, '#5a5a62');
+  g.addColorStop(1, '#3e3e48');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 1024, 920);
 
-  // boot mark — black ▶ glyph then "Nintendo" in pixel-ish chunks
-  ctx.fillStyle = '#161e0c';
-  // ▶ triangle
-  ctx.beginPath();
-  ctx.moveTo(330, 430);
-  ctx.lineTo(330, 510);
-  ctx.lineTo(395, 470);
-  ctx.closePath();
-  ctx.fill();
+  // pixel grid
+  ctx.fillStyle = 'rgba(20, 20, 28, 0.30)';
+  for (let y = 0; y < 920; y += 4) ctx.fillRect(0, y, 1024, 1);
+  for (let x = 0; x < 1024; x += 4) ctx.fillRect(x, 0, 1, 920);
 
-  // "Nintendo" in canvas as the iconic boot logo (chunky italic)
-  ctx.font = `italic 700 88px ${F_WORDMARK}`;
-  ctx.textBaseline = 'middle';
-  ctx.fillText('Nintendo', 420, 470);
-
-  // pixel grid overlay for that LCD look
-  ctx.fillStyle = 'rgba(20, 30, 12, 0.18)';
-  for (let y = 0; y < 920; y += 5) ctx.fillRect(0, y, 1024, 1);
-  for (let x = 0; x < 1024; x += 5) ctx.fillRect(x, 0, 1, 920);
-
-  // soft vignette
+  // subtle warm vignette
   const v = ctx.createRadialGradient(512, 460, 200, 512, 460, 700);
   v.addColorStop(0, 'rgba(0,0,0,0)');
-  v.addColorStop(1, 'rgba(0,0,0,0.18)');
+  v.addColorStop(1, 'rgba(0,0,0,0.20)');
   ctx.fillStyle = v;
+  ctx.fillRect(0, 0, 1024, 920);
+
+  // glass reflection sweep
+  const sweep = ctx.createLinearGradient(0, 0, 1024, 920);
+  sweep.addColorStop(0, 'rgba(255,255,255,0.10)');
+  sweep.addColorStop(0.4, 'rgba(255,255,255,0.0)');
+  ctx.fillStyle = sweep;
   ctx.fillRect(0, 0, 1024, 920);
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 16;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
 
   return new THREE.MeshStandardMaterial({
     map: tex,
-    emissiveMap: tex,
-    emissive: new THREE.Color(0x4a5a30),
-    emissiveIntensity: 0.32,
-    roughness: 0.28,
-    metalness: 0.0,
+    roughness: 0.32,
+    metalness: 0.05,
   });
 }
 
-// ---------------------------------------------------------------- silkscreen "Nintendo® GAME BOY™"
+// ---------------------------------------------------------------- "GAME BOY COLOR" logo decal
 /**
- * The wordmark above the screen. Drawn in Cabin Bold Italic which is
- * the closest free analog of Gill Sans Italic (the actual font Nintendo
- * used). Slightly skewed to match the real units' optical italic.
+ * White italic "GAME BOY" + rainbow "COLOR". Drawn at high resolution
+ * and applied as a transparent decal to the bezel below the screen.
  */
-export function makeSilkscreenMaterial() {
+export function makeGameBoyColorLogoMaterial() {
+  const W = 2048, H = 320;
   const c = document.createElement('canvas');
-  c.width = 2048; c.height = 384;
+  c.width = W; c.height = H;
   const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, 2048, 384);
+  ctx.clearRect(0, 0, W, H);
 
-  ctx.fillStyle = '#dbd4c1';
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
-  // single-line layout: "Nintendo® GAME BOY™"
-  ctx.save();
-  ctx.translate(1024, 192);
-  // small extra italic skew on top of the font's own italic
-  ctx.transform(1, 0, -0.05, 1, 0, 0);
-
-  ctx.font = `italic 700 168px ${F_WORDMARK}`;
-
-  // measure pieces so we can place the ® and ™ glyphs precisely
-  const nintendo = 'Nintendo';
-  const gameboy  = 'GAME BOY';
-  const nW = ctx.measureText(nintendo).width;
-  const gap = 110;
-  const gW = ctx.measureText(gameboy).width;
-  const totalW = nW + gap + gW;
-
-  const startX = -totalW / 2;
   ctx.textAlign = 'left';
 
-  // Nintendo
-  ctx.fillStyle = '#dbd4c1';
-  ctx.fillText(nintendo, startX, 0);
-  // ®
-  ctx.font = `400 56px ${F_WORDMARK}`;
-  ctx.fillStyle = '#bdb6a0';
-  ctx.fillText('®', startX + nW + 4, -40);
+  const yMid = H / 2;
 
-  // GAME BOY
-  ctx.font = `italic 700 168px ${F_WORDMARK}`;
-  ctx.fillStyle = '#dbd4c1';
-  ctx.fillText(gameboy, startX + nW + gap, 0);
-  // ™
-  ctx.font = `400 56px ${F_WORDMARK}`;
-  ctx.fillStyle = '#bdb6a0';
-  ctx.fillText('TM', startX + nW + gap + gW + 4, -52);
+  // GAME BOY — white italic, condensed, letter-spaced
+  ctx.save();
+  ctx.translate(140, yMid);
+  ctx.transform(1, 0, -0.08, 1, 0, 0); // extra italic skew
+  ctx.font = `italic 800 200px ${F_DISPLAY}`;
+  ctx.fillStyle = '#ffffff';
+  // hand-place letters with mild spacing for that GBC feel
+  let x = 0;
+  for (const ch of 'GAME BOY') {
+    ctx.fillText(ch, x, 0);
+    x += ctx.measureText(ch).width + (ch === ' ' ? 16 : 8);
+  }
+  const gameBoyEnd = x;
+  ctx.restore();
 
+  // COLOR — rainbow letters, each in its own color
+  // canonical scheme: red, orange/yellow, green, blue, purple
+  const colors = ['#e63946', '#f4a261', '#52b788', '#1d4ed8', '#9d3bd1'];
+  ctx.save();
+  ctx.translate(140 + gameBoyEnd + 70, yMid);
+  ctx.transform(1, 0, -0.08, 1, 0, 0);
+  ctx.font = `italic 800 200px ${F_DISPLAY}`;
+  let cx = 0;
+  const letters = ['C', 'O', 'L', 'o', 'R']; // 4th letter lowercase like canonical logo
+  for (let i = 0; i < letters.length; i++) {
+    ctx.fillStyle = colors[i];
+    ctx.fillText(letters[i], cx, 0);
+    cx += ctx.measureText(letters[i]).width + 6;
+  }
   ctx.restore();
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 16;
-
   return new THREE.MeshStandardMaterial({
     map: tex,
     transparent: true,
     depthWrite: false,
-    roughness: 0.7,
+    roughness: 0.6,
     metalness: 0,
   });
 }
 
-// ---------------------------------------------------------------- "DOT MATRIX WITH STEREO SOUND"
-export function makeTaglineMaterial() {
+// ---------------------------------------------------------------- "Nintendo®" red wordmark
+/**
+ * The classic Nintendo wordmark. Drawn in dark red, italic, with the
+ * characteristic stylized letterforms (approximated via Cabin Bold
+ * Italic with a heavy skew). The ® sits up and to the right.
+ */
+export function makeNintendoWordmarkMaterial() {
+  const W = 1024, H = 192;
   const c = document.createElement('canvas');
-  c.width = 2048; c.height = 192;
+  c.width = W; c.height = H;
   const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, 2048, 192);
-  ctx.textAlign = 'left';
+  ctx.clearRect(0, 0, W, H);
+
   ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
 
-  // single italic line with the iconic mustard "WITH"
-  ctx.font = `italic 700 92px ${F_WORDMARK}`;
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.transform(1, 0, -0.10, 1, 0, 0);
+  ctx.font = `italic 700 116px ${F_WORDMARK}`;
+  ctx.fillStyle = '#a31621';
+  ctx.fillText('Nintendo', 0, 0);
+  ctx.restore();
 
-  const left  = 'DOT MATRIX ';
-  const mid   = 'WITH';
-  const right = ' STEREO SOUND';
-  const lw = ctx.measureText(left).width;
-  const mw = ctx.measureText(mid).width;
-  const rw = ctx.measureText(right).width;
-  const total = lw + mw + rw;
-  let x = 1024 - total / 2;
-  const y = 96;
+  // ® mark
+  ctx.save();
+  ctx.font = `400 36px ${F_WORDMARK}`;
+  ctx.fillStyle = '#a31621';
+  ctx.textAlign = 'left';
+  ctx.fillText('®', W / 2 + 270, H / 2 - 32);
+  ctx.restore();
 
-  ctx.fillStyle = '#d4cdb8';
-  ctx.fillText(left, x, y);
-  x += lw;
-  ctx.fillStyle = '#d8c34a';
-  ctx.fillText(mid, x, y);
-  x += mw;
-  ctx.fillStyle = '#d4cdb8';
-  ctx.fillText(right, x, y);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 16;
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.6,
+    metalness: 0,
+  });
+}
+
+// ---------------------------------------------------------------- POWER indicator
+/**
+ * Vertical "POWER" stack: red dot, then three white chevrons → → →,
+ * then "POWER" text below. Sits on the left side of the bezel.
+ */
+export function makePowerIndicatorMaterial() {
+  const W = 256, H = 512;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  // red triangular indicator (pointing right)
+  ctx.fillStyle = '#e23a3a';
+  ctx.beginPath();
+  ctx.moveTo(60, 80);
+  ctx.lineTo(60, 160);
+  ctx.lineTo(125, 120);
+  ctx.closePath();
+  ctx.fill();
+
+  // three white-ish chevrons (right-pointing)
+  ctx.strokeStyle = '#e8e8e8';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < 3; i++) {
+    const x = 145 + i * 28;
+    ctx.beginPath();
+    ctx.moveTo(x, 95);
+    ctx.lineTo(x + 24, 120);
+    ctx.lineTo(x, 145);
+    ctx.stroke();
+  }
+
+  // "POWER" text below
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = `600 44px ${F_LABEL}`;
+  ctx.textAlign = 'left';
+  ctx.fillText('POWER', 50, 230);
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -291,12 +316,85 @@ export function makeTaglineMaterial() {
   });
 }
 
-// ---------------------------------------------------------------- A / B button letters
-/**
- * The italic letter molded into each face button. Drawn slightly inset
- * (with a soft inner shadow) so it reads as physical engraving rather
- * than printed text.
- */
+// ---------------------------------------------------------------- "▲ COMM" indicator
+export function makeCommIndicatorMaterial() {
+  const W = 512, H = 96;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  // small dark triangle
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.moveTo(120, 30);
+  ctx.lineTo(150, 70);
+  ctx.lineTo(90, 70);
+  ctx.closePath();
+  ctx.fill();
+
+  // "COMM" text
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = `600 50px ${F_LABEL}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('COMM', 175, 50);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 16;
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.7,
+    metalness: 0,
+  });
+}
+
+// ---------------------------------------------------------------- SELECT . START label
+export function makeSelectStartLabelMaterial() {
+  const W = 1024, H = 96;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = '#244f12';
+  ctx.font = `600 48px ${F_LABEL}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  // measure for proper centering with a "." separator
+  const left = 'SELECT';
+  const sep  = '.';
+  const right = 'START';
+  const lw = ctx.measureText(left).width;
+  const sw = ctx.measureText(sep).width;
+  const rw = ctx.measureText(right).width;
+  const gap = 80;
+  const total = lw + gap + sw + gap + rw;
+  let x = W / 2 - total / 2;
+  ctx.textAlign = 'left';
+  ctx.fillText(left, x, H / 2);
+  x += lw + gap;
+  ctx.fillText(sep, x, H / 2);
+  x += sw + gap;
+  ctx.fillText(right, x, H / 2);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 16;
+  return new THREE.MeshStandardMaterial({
+    map: tex,
+    transparent: true,
+    depthWrite: false,
+    roughness: 0.7,
+    metalness: 0,
+  });
+}
+
+// ---------------------------------------------------------------- A / B engraved letters
 export function makeButtonLetterMaterial(letter) {
   const c = document.createElement('canvas');
   c.width = 512; c.height = 512;
@@ -305,17 +403,16 @@ export function makeButtonLetterMaterial(letter) {
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `italic 700 360px ${F_WORDMARK}`;
+  ctx.font = `italic 700 320px ${F_WORDMARK}`;
 
-  // soft drop-shadow → reads as embossed
-  ctx.shadowColor = 'rgba(255, 230, 215, 0.55)';
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 6;
-  ctx.fillStyle = '#3a0d1d';
+  // soft inner shadow → embossed
+  ctx.shadowColor = 'rgba(255,255,255,0.10)';
+  ctx.shadowOffsetY = 4;
+  ctx.fillStyle = '#0c0c0c';
   ctx.fillText(letter, 256, 268);
 
   ctx.shadowColor = 'transparent';
-  ctx.fillStyle = '#f4d8c8';
+  ctx.fillStyle = '#5a5a58';
   ctx.fillText(letter, 256, 256);
 
   const tex = new THREE.CanvasTexture(c);
@@ -330,44 +427,44 @@ export function makeButtonLetterMaterial(letter) {
   });
 }
 
-// ---------------------------------------------------------------- Futura-ish micro labels
+// ---------------------------------------------------------------- Speaker dot grid
 /**
- * Small silkscreen text — used for "BATTERY", "PHONES", "OFF · ON",
- * "START", "SELECT", and the engraved "A" / "B" callouts beside the
- * face buttons.
+ * The GBC speaker is a triangular cluster of small round holes in the
+ * bottom-right corner. Drawn as a transparent decal — black holes on
+ * a transparent background.
  */
-export function makeMicroLabel(text, {
-  color = '#5a574e',
-  size = 220,
-  weight = 600,
-  width = 1024,
-  height = 256,
-  italic = false,
-  letterSpacing = 0,
-} = {}) {
+export function makeSpeakerGridMaterial() {
+  const W = 512, H = 512;
   const c = document.createElement('canvas');
-  c.width = width; c.height = height;
+  c.width = W; c.height = H;
   const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, width, height);
+  ctx.clearRect(0, 0, W, H);
 
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `${italic ? 'italic ' : ''}${weight} ${size}px ${F_LABEL}`;
-  ctx.fillStyle = color;
+  // hex grid of holes, clipped to a triangle pointing toward the bottom-right
+  const radius = 9;
+  const stepX = 26;
+  const stepY = 22;
+  const cols = 14;
+  const rows = 14;
 
-  // crude letter-spacing emulation
-  if (letterSpacing > 0) {
-    const chars = [...text];
-    const widths = chars.map(ch => ctx.measureText(ch).width);
-    const total = widths.reduce((s, w) => s + w, 0) + letterSpacing * (chars.length - 1);
-    let x = width / 2 - total / 2;
-    ctx.textAlign = 'left';
-    chars.forEach((ch, i) => {
-      ctx.fillText(ch, x, height / 2);
-      x += widths[i] + letterSpacing;
-    });
-  } else {
-    ctx.fillText(text, width / 2, height / 2);
+  ctx.fillStyle = '#0a0a0a';
+
+  for (let r = 0; r < rows; r++) {
+    for (let cI = 0; cI < cols; cI++) {
+      const offset = (r % 2 === 0) ? 0 : stepX / 2;
+      const x = 60 + cI * stepX + offset;
+      const y = 60 + r * stepY;
+
+      // Only draw inside a downward-right triangle area
+      // Clip: x > some_min based on row, and y > some_min based on column
+      // Simpler: draw inside an inverted triangle (fewer at top, more at bottom-right)
+      const triangleEdge = (cI - r * 0.6) > -2 && (r + cI) > 6 && r < 12 && cI < 13;
+      if (!triangleEdge) continue;
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   const tex = new THREE.CanvasTexture(c);
@@ -377,7 +474,7 @@ export function makeMicroLabel(text, {
     map: tex,
     transparent: true,
     depthWrite: false,
-    roughness: 0.75,
+    roughness: 0.85,
     metalness: 0,
   });
 }
