@@ -7,12 +7,15 @@ import { makeWalnutMaterial } from '../utils/materials.js';
  */
 export function buildTable(scene) {
   const top = 0.0;
-  const thickness = 0.18;
+  const thickness = 0.20;
 
-  const geo = new RoundedBoxGeometry(7.2, thickness, 4.6, 4, 0.04);
+  // Big enough to fill the camera frame at any allowed orbit angle.
+  const geo = new RoundedBoxGeometry(30, thickness, 22, 4, 0.04);
   const mat = makeWalnutMaterial();
   if (mat.map) {
-    mat.map.repeat.set(1.2, 0.8);
+    // tile the wood-grain texture across the bigger surface so it
+    // doesn't stretch to mush
+    mat.map.repeat.set(4.0, 3.0);
     mat.map.offset.set(0.05, 0.2);
     mat.map.needsUpdate = true;
   }
