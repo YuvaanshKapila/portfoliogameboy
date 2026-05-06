@@ -139,7 +139,11 @@ export function buildCartridgeBasket() {
     embossOval.position.set(0, cartH / 2 - 0.001, -cartL / 2 + 0.10);
     cart.add(embossOval);
 
-    // Front sticker label
+    // Front sticker label — applied to BOTH +Y and -Y faces so the
+    // label remains visible to the camera whether the cart is laying
+    // flat in the basket OR standing upright in the snap slot (where
+    // the cart is rotated -90° around X and the originally-bottom
+    // face becomes the camera-facing one).
     const labelTex = makeCartridgeLabel(title, accent);
     const labelMat = new THREE.MeshStandardMaterial({
       map: labelTex,
@@ -149,14 +153,19 @@ export function buildCartridgeBasket() {
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
     });
-    const label = new THREE.Mesh(
-      new THREE.PlaneGeometry(cartW - labelMargin * 0.6, cartL * 0.62),
-      labelMat,
-    );
-    label.rotation.x = -Math.PI / 2;
-    label.position.y = cartH / 2 + 0.001;
-    label.position.z = cartL * 0.06;  // shifted toward the bottom of the cart
-    cart.add(label);
+    const labelGeo = new THREE.PlaneGeometry(cartW - labelMargin * 0.6, cartL * 0.62);
+
+    const labelTop = new THREE.Mesh(labelGeo, labelMat);
+    labelTop.rotation.x = -Math.PI / 2;
+    labelTop.position.y = cartH / 2 + 0.001;
+    labelTop.position.z = cartL * 0.06;
+    cart.add(labelTop);
+
+    const labelBottom = new THREE.Mesh(labelGeo, labelMat);
+    labelBottom.rotation.x = Math.PI / 2;
+    labelBottom.position.y = -cartH / 2 - 0.001;
+    labelBottom.position.z = cartL * 0.06;
+    cart.add(labelBottom);
 
     // Laid flat in the basket, lined up along Z, with a small gap
     // between each so all four labels are fully readable.

@@ -318,45 +318,35 @@ export function buildGameBoy() {
   gb.add(powerPort);
 
   // ============================================================
-  // CARTRIDGE SLOT — at the BACK-TOP edge of the device
+  // CARTRIDGE SLOT — invisible-by-default, snap-driven
   //
-  // Real GBC carts slide in from above-behind. We mimic that:
-  // a slim dark recess on the back-top edge of the body, plus a
-  // snap anchor positioned high above the back edge so a snapped
-  // cart stands tall and visible — label facing the camera, just
-  // like the cart in the user's reference photo.
+  // No visible rectangle on the body anymore. The body's rounded
+  // corners caused any box-shaped slot to bleed onto the front face.
+  // Instead the slot is implied by the snap behavior: drag a cart
+  // toward the back-top of the device and it locks into a position
+  // that LOOKS like an insertion — cart standing tall above the
+  // back edge, label facing the camera.
   //
-  // Nothing on the top FACE of the body — no more dark rectangle
-  // overlapping the screen area.
+  // The visible "slot" is just a slim dark band tucked under the
+  // back overhang of the body — only visible from a low/back angle.
   // ============================================================
-  const slotW = 0.56;
-  const slotZ = 0.045;      // narrow strip along Z, sits at the very back edge
-  const slotH = 0.06;       // visible opening height on the back edge
+  const slotW = 0.50;
+  const slotH = 0.018;
+  const slotZ = 0.014;
 
-  // The visible slot recess — small dark box poking out the back-top
-  // edge of the body.
-  const slotRecess = new THREE.Mesh(
+  const slotBand = new THREE.Mesh(
     new THREE.BoxGeometry(slotW, slotH, slotZ),
     new THREE.MeshStandardMaterial({
-      color: 0x0a0a0a, roughness: 0.9, metalness: 0,
+      color: 0x0a0a0a, roughness: 0.95, metalness: 0,
     }),
   );
-  slotRecess.position.set(0, D - slotH / 2 + 0.001, -halfL + slotZ / 2 - 0.005);
-  gb.add(slotRecess);
-
-  // Inner darker channel — depth cue
-  const slotChannel = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW * 0.93, slotH * 0.55, slotZ * 0.6),
-    new THREE.MeshStandardMaterial({
-      color: 0x020202, roughness: 0.95, metalness: 0,
-    }),
-  );
-  slotChannel.position.set(0, D - slotH / 2 + 0.005, -halfL + slotZ / 2);
-  gb.add(slotChannel);
+  // Tucked just under the back edge of the body, low on the back face,
+  // so only visible from below/behind. Doesn't show on the front face.
+  slotBand.position.set(0, D - slotH / 2 - 0.005, -halfL - slotZ / 2 + 0.002);
+  gb.add(slotBand);
 
   // Snap anchor — sits high above the back-top edge so a snapped
   // cart stands upright in the slot, mostly visible above the device.
-  // (Local space — interactions.js converts to world.)
   const cartSlotAnchor = new THREE.Object3D();
   cartSlotAnchor.name = 'cart-slot-anchor';
   cartSlotAnchor.position.set(0, D + 0.22, -halfL + 0.02);
