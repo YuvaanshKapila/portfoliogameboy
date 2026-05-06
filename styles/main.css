@@ -1,0 +1,39 @@
+:root {
+  --ink: #0d0a06;
+  --paper-dim: rgba(232, 220, 196, 0.55);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--ink);
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+  color: var(--paper-dim);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: block;
+  cursor: grab;
+}
+#stage:active { cursor: grabbing; }
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+  pointer-events: none;
+  user-select: none;
+  z-index: 5;
+  font-weight: 500;
+}
+@media (max-width: 640px) {
+  .hint { font-size: 9px; letter-spacing: 2px; bottom: 16px; }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "gameboy-still-life",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A procedural Game Boy DMG-01 modeled in Three.js, sitting on a walnut desk.",
+  "author": "Yuvaansh Kapila",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
