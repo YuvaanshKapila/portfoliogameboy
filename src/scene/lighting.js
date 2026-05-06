@@ -14,7 +14,9 @@ export function buildLighting(scene) {
   const key = new THREE.DirectionalLight(0xfff0d2, 2.2);
   key.position.set(-3.2, 5.4, 3.0);
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  // 1024² shadow map (was 2048²) — 4x cheaper to compute every frame
+  // and the soft PCF filter hides the resolution drop at this scale.
+  key.shadow.mapSize.set(1024, 1024);
   key.shadow.camera.near = 0.5;
   key.shadow.camera.far = 18;
   key.shadow.camera.left = -4;

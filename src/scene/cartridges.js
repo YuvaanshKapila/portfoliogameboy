@@ -295,7 +295,7 @@ function makeCartridgeLabel(title, accent) {
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = 8;
   return tex;
 }
 

@@ -19,7 +19,9 @@ const renderer = new THREE.WebGLRenderer({
   alpha: false,
   powerPreference: 'high-performance',
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// Cap pixel ratio at 1.5 — keeps the scene crisp on high-DPI screens
+// without paying the 4x render cost of true 2x. Significant FPS win.
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -60,12 +62,12 @@ const camera = new THREE.PerspectiveCamera(
   0.20,
   60,
 );
-// Initial camera: straight on, centered on the scene midpoint between
-// the Game Boy (x=0.30) and the cart basket (x=-0.95).
-const camDist  = 3.6;
-const camPolar = THREE.MathUtils.degToRad(12);   // gentle tilt down
-const camAzim  = THREE.MathUtils.degToRad(0);    // dead-center, no yaw
-const camTarget = new THREE.Vector3(-0.32, 0.10, 0);
+// Initial camera: straight on, centered on the scene midpoint.
+// Pulled back a touch to accommodate the bigger Game Boy.
+const camDist  = 4.2;
+const camPolar = THREE.MathUtils.degToRad(12);
+const camAzim  = THREE.MathUtils.degToRad(0);
+const camTarget = new THREE.Vector3(-0.30, 0.15, 0);
 
 // Position is camTarget + spherical offset so the camera looks AT
 // camTarget instead of the world origin.
@@ -82,8 +84,8 @@ orbit.dampingFactor = 0.06;
 // Tight camera locks — a recruiter can't lose their bearings or
 // rotate the scene off-screen. Only small, presentation-friendly
 // adjustments are allowed.
-orbit.minDistance = 2.8;
-orbit.maxDistance = 4.2;
+orbit.minDistance = 3.4;
+orbit.maxDistance = 5.2;
 orbit.minPolarAngle = THREE.MathUtils.degToRad(8);
 orbit.maxPolarAngle = THREE.MathUtils.degToRad(28);
 orbit.minAzimuthAngle = THREE.MathUtils.degToRad(-22);
@@ -123,14 +125,15 @@ let slotAnchorRef = null;
   }
 
   const gameBoy = buildGameBoy();
-  gameBoy.scale.setScalar(1.25);
-  gameBoy.position.set(0.30, 0, 0);
+  gameBoy.scale.setScalar(1.45);     // bigger overall
+  gameBoy.position.set(0.40, 0, 0);
   scene.add(gameBoy);
   gameBoyRef = gameBoy;
   slotAnchorRef = gameBoy.getObjectByName('cart-slot-anchor');
 
   const { group: cartGroup, cartridges } = buildCartridgeBasket();
-  cartGroup.position.set(-0.95, 0, 0);
+  cartGroup.scale.setScalar(1.10);
+  cartGroup.position.set(-1.10, 0, 0);
   scene.add(cartGroup);
   cartridgesRef = cartridges;
 

@@ -30,7 +30,7 @@ const F_DISPLAY  = '"Lilita One", "Bowlby One", "Cooper Std", "Arial Black", san
 function makeDecalMaterial(canvas, { roughness = 0.65 } = {}) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = 8;
   return new THREE.MeshStandardMaterial({
     map: tex,
     transparent: true,
@@ -126,7 +126,7 @@ export function makeWalnutMaterial() {
 
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 16;
+  tex.anisotropy = 8;
   tex.colorSpace = THREE.SRGBColorSpace;
 
   return new THREE.MeshPhysicalMaterial({
@@ -230,7 +230,7 @@ export function makeCartridgeScreenMaterial(title) {
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = 8;
 
   return new THREE.MeshStandardMaterial({
     map: tex,
@@ -322,7 +322,7 @@ export function makeBootScreenMaterial() {
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = 8;
 
   return new THREE.MeshStandardMaterial({
     map: tex,
@@ -372,7 +372,7 @@ export function makeScreenMaterial() {
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = 8;
 
   return new THREE.MeshStandardMaterial({
     map: tex,

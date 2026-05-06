@@ -158,28 +158,45 @@ export function setupInteractions({
 
   const lcdOffMaterial = lcd ? lcd.material : null;
 
-  // ---------------- per-cart LCD content (shown when snapped) ----------------
-  // The material BEFORE a cart was inserted is captured here so we
-  // can revert correctly (could be the off material, the boot
-  // material, or a different cart's content).
-  let lcdPreCartMaterial = null;
+  // ---------------- LCD state machine ----------------
+  // The screen is the union of two states:
+  //   - isBooted (set true by powerOn(), false by powerOff())
+  //   - currentCart (set by showCartContent / cleared by hideCartContent)
+  //
+  // Truth table:
+  //   booted=false,  cart=*       → off material (LCD blank)
+  //   booted=true,   cart=null    → boot material (the GAME BOY animation)
+  //   booted=true,   cart!=null   → that cart's content material
+  let currentCart = null;
+
+  function setLcd(mat) {
+    if (lcd && mat) lcd.material = mat;
+  }
+
+  function refreshLcd() {
+    if (!isBooted) {
+      setLcd(lcdOffMaterial);
+      return;
+    }
+    if (currentCart && currentCart.userData.contentMaterial) {
+      setLcd(currentCart.userData.contentMaterial);
+    } else {
+      setLcd(bootMaterial);
+    }
+  }
 
   function showCartContent(cart) {
-    if (!lcd) return;
-    if (!lcdPreCartMaterial) lcdPreCartMaterial = lcd.material;
-    const title = cart.userData.title || 'CART';
     if (!cart.userData.contentMaterial) {
-      cart.userData.contentMaterial = makeCartridgeScreenMaterial(title);
+      cart.userData.contentMaterial =
+        makeCartridgeScreenMaterial(cart.userData.title || 'CART');
     }
-    lcd.material = cart.userData.contentMaterial;
+    currentCart = cart;
+    refreshLcd();
   }
 
   function hideCartContent() {
-    if (!lcd) return;
-    if (lcdPreCartMaterial) {
-      lcd.material = lcdPreCartMaterial;
-      lcdPreCartMaterial = null;
-    }
+    currentCart = null;
+    refreshLcd();
   }
 
   // Build the boot-screen canvas + texture once, reuse forever
@@ -340,7 +357,7 @@ export function setupInteractions({
     isBooted = true;
     bootStart = performance.now();
 
-    // Light up LED
+    // Light LED
     if (led) {
       led.material.color.setHex(0xff3636);
       led.material.emissive.setHex(0xff2424);
@@ -348,13 +365,14 @@ export function setupInteractions({
       led.material.needsUpdate = true;
     }
 
-    // Swap LCD material to the live boot canvas texture
-    if (lcd) {
-      drawBootFrame(0);
-      lcd.material = bootMaterial;
-    }
-
+    // Start with the boot animation; once it's done, refreshLcd will
+    // either keep the boot screen or swap to the inserted cart's
+    // content depending on whether one is snapped in.
+    drawBootFrame(0);
+    setLcd(bootMaterial);
     playBootChime();
+
+    setTimeout(() => { refreshLcd(); }, TOTAL_DUR * 1000);
   }
 
   function powerOff() {
@@ -367,7 +385,7 @@ export function setupInteractions({
       led.material.emissive.setHex(0x220505);
       led.material.emissiveIntensity = 0.4;
     }
-    if (lcd && lcdOffMaterial) lcd.material = lcdOffMaterial;
+    refreshLcd();
   }
 
   // ---------------- physics for released cartridges ----------------
