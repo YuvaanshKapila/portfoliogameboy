@@ -60,17 +60,20 @@ const camera = new THREE.PerspectiveCamera(
   0.20,
   60,
 );
-const camDist = 3.4;
-const camPolar = THREE.MathUtils.degToRad(18);
-const camAzim  = THREE.MathUtils.degToRad(0);
+// Initial camera: straight on, centered on the scene midpoint between
+// the Game Boy (x=0.30) and the cart basket (x=-0.95).
+const camDist  = 3.6;
+const camPolar = THREE.MathUtils.degToRad(12);   // gentle tilt down
+const camAzim  = THREE.MathUtils.degToRad(0);    // dead-center, no yaw
+const camTarget = new THREE.Vector3(-0.32, 0.10, 0);
+
+// Position is camTarget + spherical offset so the camera looks AT
+// camTarget instead of the world origin.
 camera.position.set(
-  camDist * Math.sin(camPolar) * Math.sin(camAzim),
-  camDist * Math.cos(camPolar),
-  camDist * Math.sin(camPolar) * Math.cos(camAzim),
+  camTarget.x + camDist * Math.sin(camPolar) * Math.sin(camAzim),
+  camTarget.y + camDist * Math.cos(camPolar),
+  camTarget.z + camDist * Math.sin(camPolar) * Math.cos(camAzim),
 );
-// camera target shifted slightly LEFT so both the Game Boy AND the
-// cartridge basket fit comfortably in the framing.
-const camTarget = new THREE.Vector3(-0.30, 0.10, 0);
 camera.lookAt(camTarget);
 
 const orbit = new OrbitControls(camera, canvas);
