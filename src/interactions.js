@@ -8,6 +8,11 @@ const CART_URLS = {
   PROJECTS: 'https://github.com/YuvaanshKapila?tab=repositories',
 };
 
+// Secondary URL opened by the B button on certain carts
+const CART_SECONDARY_URLS = {
+  PROJECTS: 'https://doi.org/10.5281/zenodo.19392606',  // research paper
+};
+
 // CONTACT cart has multiple URLs selectable via the D-pad
 const CONTACT_URLS = [
   'https://github.com/YuvaanshKapila',
@@ -656,6 +661,12 @@ export function setupInteractions({
           if (!isBooted) powerOn(); else powerOff();
         } else if (kind === 'a') {
           openCurrentCartUrl();
+        } else if (kind === 'b') {
+          // B opens the cart's secondary URL (e.g. PROJECTS → paper)
+          if (currentCart) {
+            const secondary = CART_SECONDARY_URLS[currentCart.userData.title];
+            if (secondary) openUrl(secondary);
+          }
         } else if (kind === 'dpad') {
           // Determine which arm of the cross was clicked. The D-pad's
           // long axis is local Z (up = -Z, down = +Z when device is
