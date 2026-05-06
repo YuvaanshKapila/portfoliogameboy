@@ -45,8 +45,12 @@ export function setupInteractions({
   const SNAP_Z_TOL     = 0.18;    // drop z must be <= slotWorld.z + this
   const SNAP_LERP      = 0.28;    // faster slide-in so transit is brief
 
+  // CRITICAL: do NOT set transformGroup. With transformGroup=true,
+  // DragControls always picks up cartridges[0] no matter which cart
+  // the user actually clicked on. That was the bug where you could
+  // only ever pick up one cart. Each cart is now a single Mesh (with
+  // children) so DragControls correctly identifies the clicked cart.
   const drag = new DragControls(cartridges, camera, canvas);
-  drag.transformGroup = true;
 
   // reusable buffers
   const _cartWorld = new THREE.Vector3();
@@ -69,18 +73,35 @@ export function setupInteractions({
 
   drag.addEventListener('drag', (e) => {
     // No snap-while-dragging — let the user move the cart freely.
-    // Just keep it from passing through the console body.
     if (e.object.userData.velocity) e.object.userData.velocity.set(0, 0, 0);
 
     e.object.getWorldPosition(_cartWorld);
-    if (
+
+    const insideXZ =
       _cartWorld.x >= gbBox.min.x && _cartWorld.x <= gbBox.max.x &&
-      _cartWorld.z >= gbBox.min.z && _cartWorld.z <= gbBox.max.z
-    ) {
-      const minWorldY = gbBox.max.y + 0.04;
-      if (_cartWorld.y < minWorldY) {
-        e.object.position.y += minWorldY - _cartWorld.y;
-      }
+      _cartWorld.z >= gbBox.min.z && _cartWorld.z <= gbBox.max.z;
+
+    if (!insideXZ) return;
+
+    // Inside the cart-slot zone (small region around the back-top
+    // where the slot is), allow the cart to penetrate HALFWAY into
+    // the body — this is how the user "slides" the cart in toward
+    // the snap. Outside the slot zone, the cart rests on top.
+    const inSlotZone =
+      Math.abs(_cartWorld.x - slotWorld.x) < 0.30 &&
+      _cartWorld.z <= slotWorld.z + 0.20;
+
+    let minWorldY;
+    if (inSlotZone) {
+      // halfway into the body
+      minWorldY = (gbBox.min.y + gbBox.max.y) * 0.5;
+    } else {
+      // resting on top
+      minWorldY = gbBox.max.y + 0.04;
+    }
+
+    if (_cartWorld.y < minWorldY) {
+      e.object.position.y += minWorldY - _cartWorld.y;
     }
   });
 
@@ -159,8 +180,10 @@ export function setupInteractions({
     '#ffffff',
     '#2c5fce', '#9d3bd1', '#e7332e',
   ];
-  const LETTER_FONT = '400 240px "Lilita One", "Bowlby One", "Arial Black", sans-serif';
-  const NIN_FONT    = 'italic 700 100px "Cabin", "Gill Sans MT", sans-serif';
+  // Smaller so the G and Y fully fit on the LCD canvas.
+  const LETTER_FONT = '400 190px "Lilita One", "Bowlby One", "Arial Black", sans-serif';
+  const NIN_FONT    = 'italic 700 96px "Cabin", "Gill Sans MT", sans-serif';
+  const NIN_TEXT    = 'Yuvaansh';   // was "Nintendo"
 
   // Audio chime
   let audioCtx = null;
@@ -262,7 +285,7 @@ export function setupInteractions({
     }
     ctx.globalAlpha = 1;
 
-    // "Nintendo" fade-in once all letters have landed
+    // "Yuvaansh" fade-in once all letters have landed
     const allLandedTime = (LETTERS.length - 1) * LETTER_DELAY + LETTER_DUR;
     if (elapsed > allLandedTime) {
       const ft = Math.min((elapsed - allLandedTime) / NIN_FADE_DUR, 1);
@@ -271,9 +294,7 @@ export function setupInteractions({
       ctx.fillStyle = '#1a1a1a';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Nintendo', W / 2, 640);
-      ctx.font = '400 32px "Cabin", sans-serif';
-      ctx.fillText('®', W / 2 + 120, 600);
+      ctx.fillText(NIN_TEXT, W / 2, 640);
       ctx.globalAlpha = 1;
     }
 

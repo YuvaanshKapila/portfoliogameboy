@@ -103,22 +103,22 @@ export function buildCartridgeBasket() {
   for (let i = 0; i < CART_TITLES.length; i++) {
     const { title, accent } = CART_TITLES[i];
 
-    const cart = new THREE.Group();
+    // The cart is a single MESH (the body) with all the decoration
+    // attached as children. This is critical for DragControls — we
+    // pass an array of meshes (not groups), so when one is hit, the
+    // mesh + its children all move together.
+    const cart = new THREE.Mesh(
+      new RoundedBoxGeometry(cartW, cartH, cartL, 6, 0.014),
+      cartBodyMat,
+    );
     cart.name = `cartridge-${title.toLowerCase().replace(/\s+/g, '-')}`;
+    cart.castShadow = true;
+    cart.receiveShadow = true;
     cart.userData.draggable = true;
     cart.userData.kind = 'cartridge';
     cart.userData.title = title;
 
-    // Body — dark gray rounded prism
-    const body = new THREE.Mesh(
-      new RoundedBoxGeometry(cartW, cartH, cartL, 6, 0.014),
-      cartBodyMat,
-    );
-    body.castShadow = true;
-    body.receiveShadow = true;
-    cart.add(body);
-
-    // Side ridges (the molded "fins" on a real GBC cart)
+    // Side ridges (molded "fins") — children of the cart mesh
     const ridgeMat = new THREE.MeshStandardMaterial({
       color: 0x131313, roughness: 0.6,
     });
@@ -131,7 +131,7 @@ export function buildCartridgeBasket() {
       cart.add(ridge);
     }
 
-    // Top "Nintendo GAME BOY™" embossed area — a slight raised oval
+    // Top embossed oval (Nintendo GAME BOY™ area on a real cart)
     const embossOval = new THREE.Mesh(
       new RoundedBoxGeometry(cartW * 0.7, 0.005, 0.07, 4, 0.018),
       ridgeMat,
@@ -139,11 +139,10 @@ export function buildCartridgeBasket() {
     embossOval.position.set(0, cartH / 2 - 0.001, -cartL / 2 + 0.10);
     cart.add(embossOval);
 
-    // Front sticker label — applied to BOTH +Y and -Y faces so the
-    // label remains visible to the camera whether the cart is laying
-    // flat in the basket OR standing upright in the snap slot (where
-    // the cart is rotated -90° around X and the originally-bottom
-    // face becomes the camera-facing one).
+    // Sticker label on BOTH +Y and -Y faces so it reads correctly
+    // both flat-in-basket and standing-in-slot (where the cart is
+    // rotated -90° around X and the originally-bottom face is the
+    // camera-facing one).
     const labelTex = makeCartridgeLabel(title, accent);
     const labelMat = new THREE.MeshStandardMaterial({
       map: labelTex,
