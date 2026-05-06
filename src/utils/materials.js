@@ -17,7 +17,9 @@ import * as THREE from 'three';
 
 const F_WORDMARK = '"Cabin", "Gill Sans MT", "Gill Sans", "Trebuchet MS", sans-serif';
 const F_LABEL    = '"Jost", "Futura", "Century Gothic", "Trebuchet MS", sans-serif';
-const F_DISPLAY  = '"Cabin", "Bowlby One", "Cooper Std", "Times New Roman", serif';
+// Lilita One: chunky rounded display — closest free analog to the GBC logo's
+// hand-drawn italic letters. Bowlby One is the fallback with similar weight.
+const F_DISPLAY  = '"Lilita One", "Bowlby One", "Cooper Std", "Arial Black", sans-serif';
 
 // ---------------------------------------------------------------- materials
 export const matBodyKiwi = new THREE.MeshPhysicalMaterial({
@@ -114,37 +116,38 @@ export function makeWalnutMaterial() {
 
 // ---------------------------------------------------------------- screen (LCD off)
 /**
- * GBC LCD when powered off — a dark grayish surface with the
- * faintest pixel-grid texture and a glassy reflection sweep.
+ * GBC LCD when powered off — a pale grayish-lavender surface with a
+ * fine pixel grid and a soft glass sheen. Lighter than the DMG to
+ * match the GBC's TFT panel character.
  */
 export function makeScreenMaterial() {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 920;
   const ctx = c.getContext('2d');
 
-  // dark cool gray base
+  // pale lavender-gray base
   const g = ctx.createLinearGradient(0, 0, 0, 920);
-  g.addColorStop(0, '#5a5a62');
-  g.addColorStop(1, '#3e3e48');
+  g.addColorStop(0, '#bcc1c8');
+  g.addColorStop(1, '#9ea3ad');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 1024, 920);
 
-  // pixel grid
-  ctx.fillStyle = 'rgba(20, 20, 28, 0.30)';
-  for (let y = 0; y < 920; y += 4) ctx.fillRect(0, y, 1024, 1);
-  for (let x = 0; x < 1024; x += 4) ctx.fillRect(x, 0, 1, 920);
+  // crisp pixel grid
+  ctx.fillStyle = 'rgba(40, 45, 60, 0.18)';
+  for (let y = 0; y < 920; y += 5) ctx.fillRect(0, y, 1024, 1);
+  for (let x = 0; x < 1024; x += 5) ctx.fillRect(x, 0, 1, 920);
 
-  // subtle warm vignette
+  // gentle vignette
   const v = ctx.createRadialGradient(512, 460, 200, 512, 460, 700);
   v.addColorStop(0, 'rgba(0,0,0,0)');
-  v.addColorStop(1, 'rgba(0,0,0,0.20)');
+  v.addColorStop(1, 'rgba(0,0,0,0.22)');
   ctx.fillStyle = v;
   ctx.fillRect(0, 0, 1024, 920);
 
-  // glass reflection sweep
+  // diagonal glass sheen
   const sweep = ctx.createLinearGradient(0, 0, 1024, 920);
-  sweep.addColorStop(0, 'rgba(255,255,255,0.10)');
-  sweep.addColorStop(0.4, 'rgba(255,255,255,0.0)');
+  sweep.addColorStop(0, 'rgba(255,255,255,0.18)');
+  sweep.addColorStop(0.45, 'rgba(255,255,255,0.0)');
   ctx.fillStyle = sweep;
   ctx.fillRect(0, 0, 1024, 920);
 
@@ -154,18 +157,20 @@ export function makeScreenMaterial() {
 
   return new THREE.MeshStandardMaterial({
     map: tex,
-    roughness: 0.32,
+    roughness: 0.28,
     metalness: 0.05,
   });
 }
 
 // ---------------------------------------------------------------- "GAME BOY COLOR" logo decal
 /**
- * White italic "GAME BOY" + rainbow "COLOR". Drawn at high resolution
- * and applied as a transparent decal to the bezel below the screen.
+ * "GAME BOY" in chunky white italic + "CoLoR" with rainbow letters
+ * (red C, orange o, yellow L, green o, blue R) — matching the
+ * canonical GBC packaging logo. Each letter has a tiny dark shadow
+ * for the iconic raised-print look on the bezel.
  */
 export function makeGameBoyColorLogoMaterial() {
-  const W = 2048, H = 320;
+  const W = 2400, H = 480;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
@@ -175,35 +180,59 @@ export function makeGameBoyColorLogoMaterial() {
   ctx.textAlign = 'left';
 
   const yMid = H / 2;
+  const fontSize = 280;
 
-  // GAME BOY — white italic, condensed, letter-spaced
+  // ---------- "GAME BOY" — white, chunky, italic ----------
   ctx.save();
-  ctx.translate(140, yMid);
-  ctx.transform(1, 0, -0.08, 1, 0, 0); // extra italic skew
-  ctx.font = `italic 800 200px ${F_DISPLAY}`;
-  ctx.fillStyle = '#ffffff';
-  // hand-place letters with mild spacing for that GBC feel
+  ctx.translate(120, yMid);
+  ctx.transform(1, 0, -0.15, 1, 0, 0);   // strong italic skew
+  ctx.font = `400 ${fontSize}px ${F_DISPLAY}`;
+
+  // measure
+  const gbStr = 'GAME BOY';
+  const letterGap = -8;        // tight kerning
+  let totalW = 0;
+  for (const ch of gbStr) totalW += ctx.measureText(ch).width + letterGap;
+
+  // dark shadow drop
   let x = 0;
-  for (const ch of 'GAME BOY') {
-    ctx.fillText(ch, x, 0);
-    x += ctx.measureText(ch).width + (ch === ' ' ? 16 : 8);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  for (const ch of gbStr) {
+    ctx.fillText(ch, x + 6, 8);
+    x += ctx.measureText(ch).width + letterGap;
   }
-  const gameBoyEnd = x;
+  // white fill
+  x = 0;
+  ctx.fillStyle = '#ffffff';
+  for (const ch of gbStr) {
+    ctx.fillText(ch, x, 0);
+    x += ctx.measureText(ch).width + letterGap;
+  }
+  const gameBoyEnd = totalW;
   ctx.restore();
 
-  // COLOR — rainbow letters, each in its own color
-  // canonical scheme: red, orange/yellow, green, blue, purple
-  const colors = ['#e63946', '#f4a261', '#52b788', '#1d4ed8', '#9d3bd1'];
+  // ---------- "CoLoR" — rainbow letters ----------
+  const letters = ['C', 'o', 'L', 'o', 'R'];
+  // canonical GBC palette: red / orange / yellow / green / blue
+  const colors  = ['#e7332e', '#ee7e2e', '#f5d11a', '#2eb748', '#2c5fce'];
+
   ctx.save();
-  ctx.translate(140 + gameBoyEnd + 70, yMid);
-  ctx.transform(1, 0, -0.08, 1, 0, 0);
-  ctx.font = `italic 800 200px ${F_DISPLAY}`;
+  // place after "GAME BOY" with a small visual gap
+  const startX = 120 + gameBoyEnd + 60;
+  ctx.translate(startX, yMid);
+  ctx.transform(1, 0, -0.15, 1, 0, 0);
+  ctx.font = `400 ${fontSize}px ${F_DISPLAY}`;
+
   let cx = 0;
-  const letters = ['C', 'O', 'L', 'o', 'R']; // 4th letter lowercase like canonical logo
   for (let i = 0; i < letters.length; i++) {
+    const ch = letters[i];
+    // dark shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillText(ch, cx + 6, 8);
+    // colored fill
     ctx.fillStyle = colors[i];
-    ctx.fillText(letters[i], cx, 0);
-    cx += ctx.measureText(letters[i]).width + 6;
+    ctx.fillText(ch, cx, 0);
+    cx += ctx.measureText(ch).width + letterGap;
   }
   ctx.restore();
 
@@ -214,19 +243,19 @@ export function makeGameBoyColorLogoMaterial() {
     map: tex,
     transparent: true,
     depthWrite: false,
-    roughness: 0.6,
+    roughness: 0.55,
     metalness: 0,
   });
 }
 
 // ---------------------------------------------------------------- "Nintendo®" red wordmark
 /**
- * The classic Nintendo wordmark. Drawn in dark red, italic, with the
- * characteristic stylized letterforms (approximated via Cabin Bold
- * Italic with a heavy skew). The ® sits up and to the right.
+ * The classic Nintendo wordmark — proper Nintendo red, italic, with a
+ * subtle dark outline + drop-shadow giving it the embossed/raised look
+ * silkscreened on the green plastic of the GBC body.
  */
 export function makeNintendoWordmarkMaterial() {
-  const W = 1024, H = 192;
+  const W = 1400, H = 256;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
@@ -235,20 +264,44 @@ export function makeNintendoWordmarkMaterial() {
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
 
+  // ===== "Nintendo" wordmark with debossed depth =====
   ctx.save();
-  ctx.translate(W / 2, H / 2);
-  ctx.transform(1, 0, -0.10, 1, 0, 0);
-  ctx.font = `italic 700 116px ${F_WORDMARK}`;
-  ctx.fillStyle = '#a31621';
-  ctx.fillText('Nintendo', 0, 0);
+  ctx.translate(W / 2 - 30, H / 2);
+  ctx.transform(1, 0, -0.12, 1, 0, 0);     // strong italic skew (Pretendo-feel)
+  ctx.font = `italic 700 160px ${F_WORDMARK}`;
+
+  const word = 'Nintendo';
+
+  // 1. dark drop-shadow underneath (gives 3D depth)
+  ctx.fillStyle = 'rgba(50, 0, 5, 0.45)';
+  ctx.fillText(word, 5, 8);
+
+  // 2. dark stroke outline (the "depth outline" the user asked for)
+  ctx.strokeStyle = '#5c0a14';
+  ctx.lineWidth = 8;
+  ctx.lineJoin = 'round';
+  ctx.strokeText(word, 0, 0);
+
+  // 3. main red fill — canonical Nintendo red
+  ctx.fillStyle = '#d8232a';
+  ctx.fillText(word, 0, 0);
+
+  // 4. subtle highlight on top
+  const grad = ctx.createLinearGradient(0, -80, 0, 80);
+  grad.addColorStop(0, 'rgba(255,255,255,0.35)');
+  grad.addColorStop(0.4, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillText(word, 0, 0);
   ctx.restore();
 
-  // ® mark
+  // ===== ® mark =====
   ctx.save();
-  ctx.font = `400 36px ${F_WORDMARK}`;
-  ctx.fillStyle = '#a31621';
+  ctx.font = `700 44px ${F_WORDMARK}`;
+  ctx.fillStyle = 'rgba(50, 0, 5, 0.45)';
   ctx.textAlign = 'left';
-  ctx.fillText('®', W / 2 + 270, H / 2 - 32);
+  ctx.fillText('®', W / 2 + 350, H / 2 - 38);
+  ctx.fillStyle = '#d8232a';
+  ctx.fillText('®', W / 2 + 345, H / 2 - 42);
   ctx.restore();
 
   const tex = new THREE.CanvasTexture(c);
@@ -258,7 +311,7 @@ export function makeNintendoWordmarkMaterial() {
     map: tex,
     transparent: true,
     depthWrite: false,
-    roughness: 0.6,
+    roughness: 0.55,
     metalness: 0,
   });
 }
@@ -318,27 +371,27 @@ export function makePowerIndicatorMaterial() {
 
 // ---------------------------------------------------------------- "▲ COMM" indicator
 export function makeCommIndicatorMaterial() {
-  const W = 512, H = 96;
+  const W = 512, H = 144;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, W, H);
 
-  // small dark triangle
+  // dark triangle pointing up
   ctx.fillStyle = '#1a1a1a';
   ctx.beginPath();
-  ctx.moveTo(120, 30);
-  ctx.lineTo(150, 70);
-  ctx.lineTo(90, 70);
+  ctx.moveTo(150, 30);
+  ctx.lineTo(180, 100);
+  ctx.lineTo(120, 100);
   ctx.closePath();
   ctx.fill();
 
   // "COMM" text
   ctx.fillStyle = '#1a1a1a';
-  ctx.font = `600 50px ${F_LABEL}`;
+  ctx.font = `700 76px ${F_LABEL}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('COMM', 175, 50);
+  ctx.fillText('COMM', 210, 70);
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -429,37 +482,47 @@ export function makeButtonLetterMaterial(letter) {
 
 // ---------------------------------------------------------------- Speaker dot grid
 /**
- * The GBC speaker is a triangular cluster of small round holes in the
- * bottom-right corner. Drawn as a transparent decal — black holes on
- * a transparent background.
+ * GBC speaker — a tightly packed hex grid of small dark round holes
+ * forming a roughly triangular cluster in the bottom-right corner of
+ * the front face. Tuned to match the canonical photo: ~50-60 holes
+ * total, packed close together, fading toward the upper-left edge.
  */
 export function makeSpeakerGridMaterial() {
-  const W = 512, H = 512;
+  const W = 1024, H = 1024;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, W, H);
 
-  // hex grid of holes, clipped to a triangle pointing toward the bottom-right
-  const radius = 9;
-  const stepX = 26;
-  const stepY = 22;
-  const cols = 14;
-  const rows = 14;
+  const radius = 14;
+  const stepX = 36;
+  const stepY = 32;
+  const rows = 18;
+  const cols = 18;
 
-  ctx.fillStyle = '#0a0a0a';
+  ctx.fillStyle = '#080808';
+
+  // Origin at canvas center; cluster sits in bottom-right quadrant.
+  const originX = W * 0.55;
+  const originY = H * 0.55;
 
   for (let r = 0; r < rows; r++) {
     for (let cI = 0; cI < cols; cI++) {
       const offset = (r % 2 === 0) ? 0 : stepX / 2;
-      const x = 60 + cI * stepX + offset;
-      const y = 60 + r * stepY;
+      const x = originX + cI * stepX + offset;
+      const y = originY + r * stepY;
 
-      // Only draw inside a downward-right triangle area
-      // Clip: x > some_min based on row, and y > some_min based on column
-      // Simpler: draw inside an inverted triangle (fewer at top, more at bottom-right)
-      const triangleEdge = (cI - r * 0.6) > -2 && (r + cI) > 6 && r < 12 && cI < 13;
-      if (!triangleEdge) continue;
+      // Triangular silhouette: keep holes only where (cI + r > some) and within bounds
+      const triEdge = (cI + r * 0.85) > 1.5 && (r + cI) > 2;
+      if (!triEdge) continue;
+      if (x > W - 20 || y > H - 20) continue;
+
+      // soft inner shadow on each hole for depth
+      const grad = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, radius);
+      grad.addColorStop(0, '#1a1a1a');
+      grad.addColorStop(0.6, '#080808');
+      grad.addColorStop(1, '#000000');
+      ctx.fillStyle = grad;
 
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);

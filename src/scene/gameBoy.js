@@ -83,46 +83,45 @@ export function buildGameBoy() {
 
   const bezelTopY = D + 0.001;
 
-  // ---------- LCD ----------
-  // sits in the upper portion of the bezel
+  // ---------- LCD (centered horizontally in the bezel) ----------
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(0.50, 0.50),
     makeScreenMaterial(),
   );
   screen.rotation.x = -Math.PI / 2;
-  screen.position.set(0.04, bezelTopY, bezelZ - 0.10);
+  screen.position.set(0, bezelTopY, bezelZ - 0.08);
   gb.add(screen);
 
-  // ---------- POWER indicator (left side of bezel, vertical) ----------
+  // ---------- POWER indicator (vertical stack on the left of the bezel) ----------
   const powerInd = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.07, 0.18),
+    new THREE.PlaneGeometry(0.07, 0.16),
     makePowerIndicatorMaterial(),
   );
   powerInd.rotation.x = -Math.PI / 2;
-  powerInd.position.set(-0.28, bezelTopY, bezelZ - 0.18);
+  powerInd.position.set(-0.30, bezelTopY, bezelZ - 0.18);
   gb.add(powerInd);
 
-  // ---------- "GAME BOY COLOR" wordmark (bottom of bezel) ----------
+  // ---------- "GAME BOY COLOR" wordmark (centered below LCD on bezel) ----------
   const gbcLogo = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.55, 0.08),
+    new THREE.PlaneGeometry(0.62, 0.10),
     makeGameBoyColorLogoMaterial(),
   );
   gbcLogo.rotation.x = -Math.PI / 2;
-  gbcLogo.position.set(0.04, bezelTopY, bezelZ + 0.30);
+  gbcLogo.position.set(0, bezelTopY, bezelZ + 0.27);
   gb.add(gbcLogo);
 
-  // ---------- "▲ COMM" silkscreen (front face, near top-left) ----------
+  // ---------- "▲ COMM" silkscreen (front face, top-left, above the bezel) ----------
   const commLabel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.18, 0.034),
+    new THREE.PlaneGeometry(0.18, 0.05),
     makeCommIndicatorMaterial(),
   );
   commLabel.rotation.x = -Math.PI / 2;
-  commLabel.position.set(-0.08, frontY, -halfL + 0.045);
+  commLabel.position.set(-0.20, frontY, -halfL + 0.06);
   gb.add(commLabel);
 
-  // ---------- "Nintendo®" wordmark (green body, below bezel) ----------
+  // ---------- "Nintendo®" wordmark (green body, just below the bezel) ----------
   const nintendo = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.32, 0.06),
+    new THREE.PlaneGeometry(0.42, 0.075),
     makeNintendoWordmarkMaterial(),
   );
   nintendo.rotation.x = -Math.PI / 2;
@@ -300,26 +299,40 @@ export function buildGameBoy() {
   }
 
   // ============================================================
-  // CARTRIDGE SLOT — BACK of the device, near the top edge
+  // CARTRIDGE SLOT — visible recess on the TOP edge of the device
+  // (real GBC has the slot on the back-top; we expose it on the top
+  //  edge so the camera can see it from above without orbiting)
   // ============================================================
-  // The back face is at Y=0 (lying on table) — but lifting the device
-  // off the table for visibility, we cut a slot that's visible if the
-  // user orbits to a back-side view.
-  const cartSlot = new THREE.Mesh(
-    new THREE.BoxGeometry(0.50, 0.02, 0.06),
+  const slotW = 0.58;
+  const slotH = 0.05;       // depth of the recess
+  const slotZ = 0.08;       // how thick the slot is along Z
+
+  // Outer dark recess
+  const cartSlotOuter = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW + 0.04, slotH + 0.005, slotZ + 0.01),
     matBezel,
   );
-  cartSlot.position.set(0, 0.005, -halfL + 0.20);
-  gb.add(cartSlot);
+  cartSlotOuter.position.set(0, D - slotH / 2, -halfL + slotZ / 2 + 0.02);
+  gb.add(cartSlotOuter);
 
-  // Cart-slot framing rim
-  const cartRim = new THREE.Mesh(
-    new RoundedBoxGeometry(0.54, 0.012, 0.10, 3, 0.005),
-    matBodyKiwi,
+  // Inner darker channel — looks like the cartridge would slide here
+  const cartSlotInner = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW, slotH * 0.7, slotZ * 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.9 }),
   );
-  cartRim.position.set(0, 0.0001, -halfL + 0.20);
-  gb.add(cartRim);
-  cartRim.visible = false; // the body already provides framing — disable for now
+  cartSlotInner.position.set(0, D - slotH / 2 + 0.005, -halfL + slotZ / 2 + 0.02);
+  gb.add(cartSlotInner);
+
+  // Two small alignment notches at either end of the slot (cosmetic)
+  const notchMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a });
+  for (const x of [-slotW / 2 + 0.02, slotW / 2 - 0.02]) {
+    const notch = new THREE.Mesh(
+      new THREE.BoxGeometry(0.015, slotH * 0.9, slotZ * 0.8),
+      notchMat,
+    );
+    notch.position.set(x, D - slotH / 2 + 0.005, -halfL + slotZ / 2 + 0.02);
+    gb.add(notch);
+  }
 
   return gb;
 }

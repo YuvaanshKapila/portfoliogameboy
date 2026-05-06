@@ -45,8 +45,8 @@ const camera = new THREE.PerspectiveCamera(
   0.05,
   100,
 );
-const camDist = 3.0;
-const camPolar = THREE.MathUtils.degToRad(8);  // 0 = straight down, 90 = horizon
+const camDist = 2.6;
+const camPolar = THREE.MathUtils.degToRad(15);  // 0 = straight down, 90 = horizon
 const camAzim  = THREE.MathUtils.degToRad(0);
 camera.position.set(
   camDist * Math.sin(camPolar) * Math.sin(camAzim),
