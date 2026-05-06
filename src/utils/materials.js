@@ -204,7 +204,10 @@ const CART_CONTENT = {
   ],
 };
 
-export function makeCartridgeScreenMaterial(title) {
+export const CART_VISIBLE_LINES = 9;
+export function getCartContent(title) { return CART_CONTENT[title] || null; }
+
+export function makeCartridgeScreenMaterial(title, scrollOffset = 0) {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 1024;
   const ctx = c.getContext('2d');
@@ -230,7 +233,7 @@ export function makeCartridgeScreenMaterial(title) {
   if (title === 'CONTACT') {
     drawContactBody(ctx);
   } else {
-    drawListBody(ctx, CART_CONTENT[title] || ['NO DATA']);
+    drawListBody(ctx, CART_CONTENT[title] || ['NO DATA'], scrollOffset);
   }
 
   // pixel grid for the LCD feel
@@ -262,18 +265,31 @@ export function makeCartridgeScreenMaterial(title) {
   });
 }
 
-function drawListBody(ctx, items) {
-  // Auto-tighten line-height when there are a lot of lines
-  const lineH = items.length > 12 ? 56 : (items.length > 8 ? 66 : 80);
-  const fontPx = items.length > 12 ? 44 : (items.length > 8 ? 50 : 56);
+function drawListBody(ctx, items, scrollOffset = 0) {
+  const VISIBLE = CART_VISIBLE_LINES;
+  const lineH = 70;
+  const fontPx = 50;
+
+  // Clamp the offset
+  const maxOff = Math.max(0, items.length - VISIBLE);
+  const off = Math.max(0, Math.min(scrollOffset, maxOff));
+  const visible = items.slice(off, off + VISIBLE);
+
   ctx.font = `600 ${fontPx}px ${F_LABEL}`;
   ctx.fillStyle = '#222222';
   ctx.textAlign = 'left';
   let y = 240;
-  for (const line of items) {
+  for (const line of visible) {
     ctx.fillText(line, 100, y);
     y += lineH;
   }
+
+  // Scroll arrows on the right when there's more above/below
+  ctx.fillStyle = '#333';
+  ctx.font = `bold 56px sans-serif`;
+  ctx.textAlign = 'center';
+  if (off > 0)                       ctx.fillText('▲', 950, 240);
+  if (off + VISIBLE < items.length)  ctx.fillText('▼', 950, 880);
 }
 
 function drawContactBody(ctx) {

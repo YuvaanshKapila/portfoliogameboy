@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import { DragControls } from 'three/addons/controls/DragControls.js';
-import { makeCartridgeScreenMaterial } from './utils/materials.js';
+import {
+  makeCartridgeScreenMaterial, getCartContent, CART_VISIBLE_LINES,
+} from './utils/materials.js';
+
+const CART_URLS = {
+  PROJECTS: 'https://github.com/YuvaanshKapila?tab=repositories',
+  CONTACT:  'https://github.com/YuvaanshKapila',
+};
 
 /**
  * Wires up all input:
@@ -184,11 +191,19 @@ export function setupInteractions({
     }
   }
 
+  function rebuildCartMaterial(cart) {
+    const off = cart.userData.scrollOffset || 0;
+    cart.userData.contentMaterial = makeCartridgeScreenMaterial(
+      cart.userData.title || 'CART', off,
+    );
+  }
+
   function showCartContent(cart) {
-    if (!cart.userData.contentMaterial) {
-      cart.userData.contentMaterial =
-        makeCartridgeScreenMaterial(cart.userData.title || 'CART');
+    // If a different cart is already in, send it back to the basket.
+    if (currentCart && currentCart !== cart) {
+      returnCartToBasket(currentCart);
     }
+    if (!cart.userData.contentMaterial) rebuildCartMaterial(cart);
     currentCart = cart;
     refreshLcd();
     playInsertSnap();
@@ -198,6 +213,61 @@ export function setupInteractions({
     if (currentCart) playEjectClick();
     currentCart = null;
     refreshLcd();
+  }
+
+  function scrollCurrentCart(direction) {
+    if (!currentCart) return;
+    const title = currentCart.userData.title;
+    const items = getCartContent(title);
+    if (!items) return;  // CONTACT has no scrollable list
+    const max = Math.max(0, items.length - CART_VISIBLE_LINES);
+    const cur = currentCart.userData.scrollOffset || 0;
+    const next = Math.max(0, Math.min(cur + direction, max));
+    if (next === cur) return;
+    currentCart.userData.scrollOffset = next;
+    rebuildCartMaterial(currentCart);
+    refreshLcd();
+  }
+
+  function openCurrentCartUrl() {
+    if (!currentCart) return;
+    const url = CART_URLS[currentCart.userData.title];
+    if (url) openUrl(url);
+  }
+
+  /* ----- Animate a cart from its current pose back to its basket home ----- */
+  function returnCartToBasket(cart) {
+    if (!cart.userData.basketHome) return;
+    cart.userData.snapped = false;
+    cart.userData.physicsActive = false;
+    cart.userData.autoInserting = true;   // prevents physics + snap fighting
+
+    const startPos = cart.position.clone();
+    const targetPos = cart.userData.basketHome.clone();
+    const startRot = { x: cart.rotation.x, y: cart.rotation.y, z: cart.rotation.z };
+
+    const dur = 600;
+    const t0 = performance.now();
+    function step() {
+      const t = Math.min((performance.now() - t0) / dur, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+
+      cart.position.lerpVectors(startPos, targetPos, ease);
+      cart.position.y += Math.sin(t * Math.PI) * 0.20;  // small arc back
+
+      cart.rotation.x = THREE.MathUtils.lerp(startRot.x, 0, ease);
+      cart.rotation.y = THREE.MathUtils.lerp(startRot.y, 0, ease);
+      cart.rotation.z = THREE.MathUtils.lerp(startRot.z, 0, ease);
+
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        cart.position.copy(targetPos);
+        cart.rotation.set(0, 0, 0);
+        cart.userData.autoInserting = false;
+      }
+    }
+    step();
   }
 
   // Build the boot-screen canvas + texture once, reuse forever
@@ -561,6 +631,17 @@ export function setupInteractions({
         playButtonClick();
         if (kind === 'start') {
           if (!isBooted) powerOn(); else powerOff();
+        } else if (kind === 'a') {
+          openCurrentCartUrl();
+        } else if (kind === 'dpad') {
+          // Determine which arm of the cross was clicked. The D-pad's
+          // long axis is local Z (up = -Z, down = +Z when device is
+          // flat). Convert the world hit point to D-pad local space.
+          const local = hit.point.clone();
+          node.worldToLocal(local);
+          if (Math.abs(local.z) > Math.abs(local.x)) {
+            scrollCurrentCart(local.z > 0 ? 1 : -1);
+          }
         }
         return;
       }
@@ -636,6 +717,17 @@ export function setupInteractions({
     cart.userData.physicsActive = true;
     cart.rotation.set(0, 0, 0);
   }
+
+  // ---------------- Keyboard shortcuts ----------------
+  // Arrow keys scroll the inserted cart's content. A / Enter open
+  // the cart's URL. Same behaviors that the on-device buttons do.
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp')   { scrollCurrentCart(-1); e.preventDefault(); }
+    if (e.key === 'ArrowDown') { scrollCurrentCart(+1); e.preventDefault(); }
+    if (e.key === 'a' || e.key === 'A' || e.key === 'Enter') {
+      openCurrentCartUrl();
+    }
+  });
 
   return { powerOn, powerOff, update };
 }

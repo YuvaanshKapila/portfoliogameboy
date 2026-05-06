@@ -188,6 +188,10 @@ export function buildCartridgeBasket() {
       -inL / 2 + cartL / 2 + i * (cartL + gap),
     );
 
+    // Remember the cart's home position in the basket so it can be
+    // animated back when a different cart replaces it in the slot.
+    cart.userData.basketHome = cart.position.clone();
+
     group.add(cart);
     cartridges.push(cart);
   }
