@@ -58,31 +58,29 @@ export function setupInteractions({
   const _targetLocal = new THREE.Vector3();
 
   drag.addEventListener('drag', (e) => {
+    // any active drag cancels physics
+    if (e.object.userData.velocity) e.object.userData.velocity.set(0, 0, 0);
+
     const wasSnapped = e.object.userData.snapped === true;
 
-    // Crucial: the cart sits inside cartGroup, so e.object.position
-    // is in cartGroup's LOCAL space. slotWorld is WORLD space. We
-    // have to compare in world space — getWorldPosition() walks the
-    // parent chain to compute it.
+    // Crucial: e.object.position is in parent-local space, slotWorld
+    // is world space — must compare in world space.
     e.object.getWorldPosition(_cartWorld);
     const dist = _cartWorld.distanceTo(slotWorld);
 
     const threshold = wasSnapped ? UNSNAP_RADIUS : SNAP_RADIUS;
 
     if (dist < threshold) {
-      // Magnetic pull: lerp the cart's world position toward the slot
-      // each drag event. Smooth attraction rather than an instant snap.
+      // Magnetic lerp toward the slot in world space
       const newWorld = _cartWorld.clone().lerp(slotWorld, SNAP_LERP);
-
-      // Convert the new world position back into cartGroup-local space
       _targetLocal.copy(newWorld);
       if (e.object.parent) e.object.parent.worldToLocal(_targetLocal);
       e.object.position.copy(_targetLocal);
 
-      // Tilt to standing-upright: rotate -90° around X so the label
-      // face (originally +Y) faces +Z (toward the camera).
-      const standT = 1 - Math.min(dist / SNAP_RADIUS, 1);  // 0..1
-      e.object.rotation.set(-Math.PI / 2 * standT, 0, 0);
+      // Stand the cart vertically: -90° around X. This makes the
+      // cart's local +Z (long axis) point world +Y (up), and its
+      // -Y face (we drew a label there too) face the camera.
+      e.object.rotation.set(-Math.PI / 2, 0, 0);
 
       e.object.userData.snapped = true;
       return;
@@ -95,8 +93,8 @@ export function setupInteractions({
       THREE.MathUtils.degToRad(2),
     );
 
-    // Anti-pass-through: keep the cart on top of the body if it
-    // wanders into the body's footprint (world space).
+    // Anti-pass-through: clamp Y so the cart doesn't sink into the
+    // console body (world space).
     if (
       _cartWorld.x >= gbBox.min.x && _cartWorld.x <= gbBox.max.x &&
       _cartWorld.z >= gbBox.min.z && _cartWorld.z <= gbBox.max.z
@@ -112,8 +110,13 @@ export function setupInteractions({
     orbit.enabled = true;
     e.object.userData.dragging = false;
     if (!e.object.userData.snapped) {
-      e.object.rotation.x = 0;
-      e.object.rotation.z = 0;
+      e.object.rotation.set(0, 0, 0);
+      // initialize velocity & enable gravity
+      if (!e.object.userData.velocity) {
+        e.object.userData.velocity = new THREE.Vector3();
+      }
+      e.object.userData.velocity.set(0, 0, 0);
+      e.object.userData.physicsActive = true;
     }
   });
 
@@ -324,15 +327,46 @@ export function setupInteractions({
     if (lcd && lcdOffMaterial) lcd.material = lcdOffMaterial;
   }
 
-  // Frame update — main.js calls this every tick
-  function update(now) {
+  // ---------------- physics for released cartridges ----------------
+  // Simple gravity: when a cart is released and not snapped, it falls
+  // until it hits the desk surface (world y = cartH/2 ≈ 0.0425) and
+  // settles there.
+  const GRAVITY  = -3.5;     // scene-units / sec² (1u ≈ 10cm)
+  const REST_Y   = 0.045;    // world-space resting y for a flat cart
+  const _phWorld = new THREE.Vector3();
+
+  function physicsStep(dt) {
+    for (const cart of cartridges) {
+      if (cart.userData.dragging) continue;
+      if (cart.userData.snapped) continue;
+      if (!cart.userData.physicsActive) continue;
+
+      if (!cart.userData.velocity) cart.userData.velocity = new THREE.Vector3();
+      cart.userData.velocity.y += GRAVITY * dt;
+
+      // Apply velocity to local Y (cartGroup has no scale, so 1:1)
+      cart.position.y += cart.userData.velocity.y * dt;
+
+      // Ground collision in world space
+      cart.getWorldPosition(_phWorld);
+      if (_phWorld.y < REST_Y) {
+        cart.position.y += (REST_Y - _phWorld.y);
+        cart.userData.velocity.set(0, 0, 0);
+        cart.userData.physicsActive = false;
+      }
+    }
+  }
+
+  // Frame update — main.js calls this every tick with (now, dt)
+  let _lastBootRedraw = 0;
+  function update(now, dt = 0) {
     if (isBooted && bootStart != null) {
       const elapsed = (now - bootStart) / 1000;
       if (elapsed < TOTAL_DUR) {
         drawBootFrame(elapsed);
       }
-      // After TOTAL_DUR the canvas is at its final state; stop redrawing.
     }
+    if (dt > 0) physicsStep(dt);
   }
 
   // ---------------- Button-press dip animation ----------------

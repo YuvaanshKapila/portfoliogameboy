@@ -142,8 +142,11 @@ function onResize() {
 window.addEventListener('resize', onResize);
 onResize();
 
+let _lastFrame = performance.now();
 function tick(now) {
-  if (interactions) interactions.update(now);
+  const dt = Math.min((now - _lastFrame) / 1000, 0.05);  // cap at 50ms
+  _lastFrame = now;
+  if (interactions) interactions.update(now, dt);
   orbit.update();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);

@@ -318,38 +318,54 @@ export function buildGameBoy() {
   gb.add(powerPort);
 
   // ============================================================
-  // CARTRIDGE SLOT — invisible-by-default, snap-driven
+  // CARTRIDGE SLOT — on the BACK face (-Z, "north")
   //
-  // No visible rectangle on the body anymore. The body's rounded
-  // corners caused any box-shaped slot to bleed onto the front face.
-  // Instead the slot is implied by the snap behavior: drag a cart
-  // toward the back-top of the device and it locks into a position
-  // that LOOKS like an insertion — cart standing tall above the
-  // back edge, label facing the camera.
+  // The slot is a dark rectangular opening on the body's back face
+  // (the thin face at the top of the device when laying flat —
+  // perpendicular to the front face, normal pointing -Z).
   //
-  // The visible "slot" is just a slim dark band tucked under the
-  // back overhang of the body — only visible from a low/back angle.
+  // Cart snap places the cart vertically in front of this opening
+  // with its bottom inserted into the slot, top sticking up — just
+  // like a real GBC cartridge insertion.
   // ============================================================
   const slotW = 0.50;
-  const slotH = 0.018;
-  const slotZ = 0.014;
+  const slotH = 0.06;
 
-  const slotBand = new THREE.Mesh(
-    new THREE.BoxGeometry(slotW, slotH, slotZ),
+  // Outer dark plane on the back face — the slot opening visual
+  const slotOuter = new THREE.Mesh(
+    new THREE.PlaneGeometry(slotW, slotH),
     new THREE.MeshStandardMaterial({
-      color: 0x0a0a0a, roughness: 0.95, metalness: 0,
+      color: 0x0a0a0a, roughness: 0.9, metalness: 0,
+      polygonOffset: true,
+      polygonOffsetFactor: -3, polygonOffsetUnits: -3,
     }),
   );
-  // Tucked just under the back edge of the body, low on the back face,
-  // so only visible from below/behind. Doesn't show on the front face.
-  slotBand.position.set(0, D - slotH / 2 - 0.005, -halfL - slotZ / 2 + 0.002);
-  gb.add(slotBand);
+  slotOuter.rotation.y = Math.PI;  // face -Z direction (away from camera)
+  slotOuter.position.set(0, D - slotH / 2 - 0.012, -halfL - 0.0005);
+  gb.add(slotOuter);
 
-  // Snap anchor — sits high above the back-top edge so a snapped
-  // cart stands upright in the slot, mostly visible above the device.
+  // Inner darker recess plane — depth cue, slightly inset
+  const slotInner = new THREE.Mesh(
+    new THREE.PlaneGeometry(slotW * 0.92, slotH * 0.7),
+    new THREE.MeshStandardMaterial({
+      color: 0x020202, roughness: 0.95, metalness: 0,
+      polygonOffset: true,
+      polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    }),
+  );
+  slotInner.rotation.y = Math.PI;
+  slotInner.position.set(0, D - slotH / 2 - 0.012, -halfL - 0.001);
+  gb.add(slotInner);
+
+  // Snap anchor — positioned so a snapped cart's BOTTOM third is
+  // INSIDE the body (inserted through the slot opening) and the top
+  // two-thirds stick up above the device.
+  // Y: cart center sits roughly at body-top + ~6cm so the cart
+  //    spans from inside the body up well above it.
+  // Z: at the body's back face so the cart aligns with the slot.
   const cartSlotAnchor = new THREE.Object3D();
   cartSlotAnchor.name = 'cart-slot-anchor';
-  cartSlotAnchor.position.set(0, D + 0.22, -halfL + 0.02);
+  cartSlotAnchor.position.set(0, D + 0.06, -halfL);
   gb.add(cartSlotAnchor);
 
   // ============================================================
