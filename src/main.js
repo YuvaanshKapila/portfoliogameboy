@@ -22,91 +22,124 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 /* ------------------------------------------------------------------
-   Scene  (lighter, warmer background instead of near-black)
+   Scene  —  black-space radial gradient background
    ------------------------------------------------------------------ */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x3c3744);
+scene.background = makeSpaceBackground();
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
+function makeSpaceBackground() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 1024;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(512, 512, 0, 512, 512, 720);
+  g.addColorStop(0.0, '#181420');
+  g.addColorStop(0.55, '#08070c');
+  g.addColorStop(1.0, '#000000');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 1024);
+  // sparse star dust
+  for (let i = 0; i < 220; i++) {
+    const x = Math.random() * 1024;
+    const y = Math.random() * 1024;
+    const r = Math.random() * 1.4 + 0.2;
+    ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${200 + Math.random() * 55}, 255, ${Math.random() * 0.6 + 0.2})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 /* ------------------------------------------------------------------
-   Camera + OrbitControls
+   Camera  +  OrbitControls
    ------------------------------------------------------------------ */
 const camera = new THREE.PerspectiveCamera(
   32,
   window.innerWidth / window.innerHeight,
   0.20,
-  50,
+  60,
 );
-const camDist = 2.6;
-const camPolar = THREE.MathUtils.degToRad(15);
+const camDist = 3.4;
+const camPolar = THREE.MathUtils.degToRad(18);
 const camAzim  = THREE.MathUtils.degToRad(0);
 camera.position.set(
   camDist * Math.sin(camPolar) * Math.sin(camAzim),
   camDist * Math.cos(camPolar),
   camDist * Math.sin(camPolar) * Math.cos(camAzim),
 );
-camera.lookAt(0, 0.10, 0);
+// camera target shifted slightly LEFT so both the Game Boy AND the
+// cartridge basket fit comfortably in the framing.
+const camTarget = new THREE.Vector3(-0.30, 0.10, 0);
+camera.lookAt(camTarget);
 
 const orbit = new OrbitControls(camera, canvas);
 orbit.enableDamping = true;
 orbit.dampingFactor = 0.06;
-orbit.minDistance = 1.6;
-orbit.maxDistance = 5.5;
+orbit.minDistance = 1.8;
+orbit.maxDistance = 6.5;
 orbit.minPolarAngle = THREE.MathUtils.degToRad(0);
-orbit.maxPolarAngle = THREE.MathUtils.degToRad(72);
-orbit.target.set(0, 0.10, 0);
+orbit.maxPolarAngle = THREE.MathUtils.degToRad(75);
+orbit.target.copy(camTarget);
 orbit.enablePan = false;
 
 /* ------------------------------------------------------------------
-   Build the scene
+   Build everything
    ------------------------------------------------------------------ */
 buildLighting(scene);
 buildTable(scene);
 
+let interactions = null;
+
 (async () => {
-  // Force-load the exact font sizes the canvas textures use, so the
-  // GBC logo / boot screen render correctly on first paint.
   if (document.fonts && document.fonts.load) {
     try {
       await Promise.all([
         document.fonts.load('400 280px "Lilita One"'),
+        document.fonts.load('400 240px "Lilita One"'),
         document.fonts.load('400 200px "Lilita One"'),
+        document.fonts.load('800 140px "Bowlby One"'),
         document.fonts.load('italic 700 160px "Cabin"'),
         document.fonts.load('italic 700 130px "Cabin"'),
+        document.fonts.load('italic 700 100px "Cabin"'),
         document.fonts.load('italic 700 320px "Cabin"'),
         document.fonts.load('700 76px "Jost"'),
         document.fonts.load('700 60px "Jost"'),
         document.fonts.load('600 48px "Jost"'),
       ]);
       await document.fonts.ready;
-    } catch (_) { /* ignore */ }
+    } catch (_) {}
   }
 
   const gameBoy = buildGameBoy();
-  gameBoy.position.set(0, 0, 0);
+  // Scale everything up for a more present hero object
+  gameBoy.scale.setScalar(1.25);
+  gameBoy.position.set(0.30, 0, 0);   // shifted right of center
   scene.add(gameBoy);
 
-  // Cartridge basket on the LEFT side of the desk
+  // Cartridge basket — positioned to the LEFT of the Game Boy so they
+  // share the desk together as a paired composition.
   const { group: cartGroup, cartridges } = buildCartridgeBasket();
-  cartGroup.position.set(-1.20, 0, 0.10);
+  cartGroup.position.set(-0.95, 0, 0);
   scene.add(cartGroup);
 
-  // Wire up clicks, drags, and the boot animation
-  setupInteractions({
+  interactions = setupInteractions({
     scene, camera, renderer, orbit,
     gameBoy, cartridges,
   });
 })();
 
 /* ------------------------------------------------------------------
-   Resize + render loop
+   Resize + tick
    ------------------------------------------------------------------ */
 function onResize() {
   const w = window.innerWidth;
@@ -118,9 +151,10 @@ function onResize() {
 window.addEventListener('resize', onResize);
 onResize();
 
-function tick() {
+function tick(now) {
+  if (interactions) interactions.update(now);
   orbit.update();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
-tick();
+requestAnimationFrame(tick);

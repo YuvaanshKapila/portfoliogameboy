@@ -70,7 +70,7 @@ export function buildGameBoy() {
   bezel.receiveShadow = true;
   gb.add(bezel);
 
-  // LCD — slightly smaller so the POWER indicator clears the screen edge
+  // LCD — centered horizontally on the bezel
   const lcdSize = 0.46;
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(lcdSize, lcdSize),
@@ -78,8 +78,7 @@ export function buildGameBoy() {
   );
   screen.name = 'lcd';
   screen.rotation.x = -Math.PI / 2;
-  // shifted right slightly to leave room for POWER on the left of the bezel
-  screen.position.set(0.04, lcdY, bezelZ - 0.06);
+  screen.position.set(0, lcdY, bezelZ - 0.06);
   gb.add(screen);
 
   // ---------- POWER indicator (left of bezel) ----------
@@ -261,20 +260,27 @@ export function buildGameBoy() {
     color: 0x14110d, roughness: 0.6, metalness: 0.3,
   });
 
-  // Left edge: power switch slot (small flush recess)
+  // Left edge: power switch slot — bigger, with a visible knob
   const powerSlot = new THREE.Mesh(
-    new THREE.BoxGeometry(0.005, 0.025, 0.07),
+    new THREE.BoxGeometry(0.012, 0.06, 0.10),
     portMat,
   );
-  powerSlot.position.set(-halfW + 0.003, D - 0.04, -0.40);
+  powerSlot.position.set(-halfW + 0.001, D / 2 + 0.02, -halfL + 0.20);
   gb.add(powerSlot);
 
-  // Left edge: link cable port (small flush rectangle)
+  const powerKnob = new THREE.Mesh(
+    new RoundedBoxGeometry(0.008, 0.04, 0.05, 4, 0.005),
+    new THREE.MeshPhysicalMaterial({ color: 0xb6b3a8, roughness: 0.55, clearcoat: 0.25 }),
+  );
+  powerKnob.position.set(-halfW + 0.005, D / 2 + 0.02, -halfL + 0.18);
+  gb.add(powerKnob);
+
+  // Left edge: link cable port — clearly visible dark slot
   const linkPort = new THREE.Mesh(
-    new THREE.BoxGeometry(0.005, 0.04, 0.06),
+    new THREE.BoxGeometry(0.012, 0.055, 0.075),
     portMat,
   );
-  linkPort.position.set(-halfW + 0.003, D / 2, -0.10);
+  linkPort.position.set(-halfW + 0.001, D / 2, 0.05);
   gb.add(linkPort);
 
   // Right edge: volume wheel cutout (small flush slot with ridges)
@@ -310,6 +316,37 @@ export function buildGameBoy() {
   );
   powerPort.position.set(-0.18, D / 2, halfL - 0.003);
   gb.add(powerPort);
+
+  // ============================================================
+  // CARTRIDGE SLOT — clearly visible recess on the TOP edge
+  // ============================================================
+  const slotW = 0.62;
+  const slotH = 0.06;
+  const slotZ = 0.10;
+
+  const cartOuter = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW + 0.02, slotH, slotZ),
+    matBezel,
+  );
+  cartOuter.position.set(0, D - slotH / 2 + 0.001, -halfL + slotZ / 2 + 0.005);
+  gb.add(cartOuter);
+
+  const cartInner = new THREE.Mesh(
+    new THREE.BoxGeometry(slotW, slotH * 0.55, slotZ * 0.55),
+    new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.95 }),
+  );
+  cartInner.position.set(0, D - slotH / 2 + 0.012, -halfL + slotZ / 2 + 0.005);
+  gb.add(cartInner);
+
+  const notchMat = new THREE.MeshStandardMaterial({ color: 0x080808 });
+  for (const x of [-slotW / 2 + 0.02, slotW / 2 - 0.02]) {
+    const notch = new THREE.Mesh(
+      new THREE.BoxGeometry(0.018, slotH * 0.8, slotZ * 0.7),
+      notchMat,
+    );
+    notch.position.set(x, D - slotH / 2 + 0.008, -halfL + slotZ / 2 + 0.005);
+    gb.add(notch);
+  }
 
   // ============================================================
   // CASE-HALF SEAM LINE (subtle, around perimeter at midline)

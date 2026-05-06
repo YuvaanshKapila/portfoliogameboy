@@ -1,41 +1,20 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { makeWalnutMaterial } from '../utils/materials.js';
 
 /**
- * A walnut desk top. The Game Boy will rest on Y=0 (top surface).
- * The table itself is a slim, gently rounded slab.
+ * Subtle dark "floor" — a single matte black plane that catches the
+ * shadows from the Game Boy and cartridge basket. With the scene's
+ * black-space background, anything more elaborate (wooden grain,
+ * etc.) would clash, so we keep this minimal.
  */
 export function buildTable(scene) {
-  const top = 0.0;
-  const thickness = 0.18;
+  const geo = new THREE.PlaneGeometry(20, 20);
+  const mat = new THREE.ShadowMaterial({ opacity: 0.55 });
 
-  const geo = new RoundedBoxGeometry(7.2, thickness, 4.6, 4, 0.04);
-  const mat = makeWalnutMaterial();
+  const floor = new THREE.Mesh(geo, mat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.001;
+  floor.receiveShadow = true;
+  scene.add(floor);
 
-  // Stretch wood grain horizontally across the long axis
-  if (mat.map) {
-    mat.map.repeat.set(1.2, 0.8);
-    mat.map.offset.set(0.05, 0.2);
-    mat.map.needsUpdate = true;
-  }
-
-  const desk = new THREE.Mesh(geo, mat);
-  desk.position.y = top - thickness / 2;
-  desk.receiveShadow = true;
-  desk.castShadow = false;
-  scene.add(desk);
-
-  // a faint inset edge band (dark) on the side — adds a touch of cabinetry
-  const edgeGeo = new RoundedBoxGeometry(7.21, thickness * 0.92, 4.61, 4, 0.04);
-  const edgeMat = new THREE.MeshStandardMaterial({
-    color: 0x21130a, roughness: 0.85, metalness: 0,
-  });
-  const edge = new THREE.Mesh(edgeGeo, edgeMat);
-  edge.position.y = top - thickness / 2;
-  edge.scale.set(1.002, 0.999, 1.002);
-  edge.visible = false; // disabled — too noisy at this camera distance, kept for reference
-  scene.add(edge);
-
-  return desk;
+  return floor;
 }
