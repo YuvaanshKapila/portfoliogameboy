@@ -357,12 +357,27 @@ export function setupInteractions({
 
       if (!cart.userData.velocity) cart.userData.velocity = new THREE.Vector3();
       cart.userData.velocity.y += GRAVITY * dt;
-
-      // Apply velocity to local Y (cartGroup has no scale, so 1:1)
       cart.position.y += cart.userData.velocity.y * dt;
 
-      // Ground collision in world space
       cart.getWorldPosition(_phWorld);
+
+      // FIRST check: is the cart above the console's XZ footprint?
+      // If yes, it lands on TOP of the console — does not fall through.
+      const insideConsoleXZ =
+        _phWorld.x >= gbBox.min.x && _phWorld.x <= gbBox.max.x &&
+        _phWorld.z >= gbBox.min.z && _phWorld.z <= gbBox.max.z;
+
+      if (insideConsoleXZ) {
+        const consoleTop = gbBox.max.y + 0.04;
+        if (_phWorld.y < consoleTop) {
+          cart.position.y += consoleTop - _phWorld.y;
+          cart.userData.velocity.set(0, 0, 0);
+          cart.userData.physicsActive = false;
+          continue;
+        }
+      }
+
+      // Otherwise, fall to the desk surface
       if (_phWorld.y < REST_Y) {
         cart.position.y += (REST_Y - _phWorld.y);
         cart.userData.velocity.set(0, 0, 0);
