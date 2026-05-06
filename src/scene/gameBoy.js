@@ -90,24 +90,8 @@ export function buildGameBoy() {
   powerInd.position.set(-0.265, decalY, bezelZ - 0.18);
   gb.add(powerInd);
 
-  // Power LED — small red dot just above the POWER indicator that
-  // lights up when the device is booted.
-  const led = new THREE.Mesh(
-    new THREE.CircleGeometry(0.012, 32),
-    new THREE.MeshStandardMaterial({
-      color: 0x551515,
-      emissive: 0x220505,
-      emissiveIntensity: 0.4,
-      roughness: 0.4,
-      polygonOffset: true,
-      polygonOffsetFactor: -3,
-      polygonOffsetUnits: -3,
-    }),
-  );
-  led.name = 'led';
-  led.rotation.x = -Math.PI / 2;
-  led.position.set(-0.265, decalY, bezelZ - 0.30);
-  gb.add(led);
+  // (No separate LED — the red triangle on the POWER indicator
+  //  decal already serves as the power-light visual.)
 
   // ---------- "GAME BOY COLOR" wordmark (centered below LCD) ----------
   const gbcLogo = new THREE.Mesh(

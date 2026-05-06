@@ -13,12 +13,13 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
  *   cartridges  — flat array of cartridge meshes (DragControls input)
  */
 
+// Alphabetical order: ABOUT ME, CONTACT, EXPERIENCE, HOBBIES, PROJECTS
 const CART_TITLES = [
-  { title: 'PROJECTS',   accent: '#e7332e' },
   { title: 'ABOUT ME',   accent: '#2c5fce' },
+  { title: 'CONTACT',    accent: '#9d3bd1' },
   { title: 'EXPERIENCE', accent: '#ee7e2e' },
   { title: 'HOBBIES',    accent: '#2eb748' },
-  { title: 'CONTACT',    accent: '#9d3bd1' },
+  { title: 'PROJECTS',   accent: '#e7332e' },
 ];
 
 export function buildCartridgeBasket() {

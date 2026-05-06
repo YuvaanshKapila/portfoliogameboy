@@ -494,14 +494,6 @@ export function setupInteractions({
     isBooted = true;
     bootStart = performance.now();
 
-    // Light LED
-    if (led) {
-      led.material.color.setHex(0xff3636);
-      led.material.emissive.setHex(0xff2424);
-      led.material.emissiveIntensity = 2.4;
-      led.material.needsUpdate = true;
-    }
-
     // Start with the boot animation; once it's done, refreshLcd will
     // either keep the boot screen or swap to the inserted cart's
     // content depending on whether one is snapped in.
@@ -517,11 +509,6 @@ export function setupInteractions({
     isBooted = false;
     bootStart = null;
 
-    if (led) {
-      led.material.color.setHex(0x551515);
-      led.material.emissive.setHex(0x220505);
-      led.material.emissiveIntensity = 0.4;
-    }
     refreshLcd();
   }
 
