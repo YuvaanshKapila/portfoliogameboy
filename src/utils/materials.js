@@ -148,35 +148,59 @@ export function makeWalnutMaterial() {
  * cart is inserted.
  */
 const CART_CONTENT = {
-  'PROJECTS': [
-    '> YUVAANSHFLIX',
-    '> BEATPACK',
-    '> CODEBLAST',
-    '> GAMERBRAIN',
-    '> THIS PORTFOLIO',
-  ],
   'ABOUT ME': [
     'YUVAANSH KAPILA',
-    'NORTH BAY, ON',
+    'GRADE 11 STUDENT',
+    'OAKVILLE, ON',
+    '(NEAR TORONTO)',
     '',
-    'DEV / MUSIC / GAMER',
-    '',
-    'CODES AT 3AM',
-    'DROPS BEATS NIGHTLY',
-  ],
-  'HOBBIES': [
-    '> RETRO GAMING',
-    '> MUSIC PRODUCTION',
-    '> LO-FI BEATS',
-    '> SPEEDRUNS',
-    '> POKEMON',
+    'I BUILD ML PROJECTS',
+    'AND EXPLORE HOW',
+    'AI SOLVES PROBLEMS.',
   ],
   'EXPERIENCE': [
-    '> WEB DEV',
-    '> FULL-STACK',
-    '> THREE.JS / WEBGL',
-    '> AUDIO PRODUCTION',
-    '> SHIPPED 7+ PROJECTS',
+    '> SWE INTERN',
+    '  MINERVA / YC X25',
+    '',
+    '> RESEARCH @ UOFT',
+    '',
+    '> HACKATHONS:',
+    '  WON 3',
+    '  ORGANIZED MANY',
+    '  CO-RAN ONE OF',
+    '  CANADA\'S LARGEST',
+  ],
+  'HOBBIES': [
+    '> MUSIC',
+    '  INSTRUMENTALS',
+    '',
+    '> COMPETITIVE SOCCER',
+    '  RIGHT BACK',
+    '  FC BAYERN FAN',
+    '',
+    '> POKEMON',
+    '  TCG + GAMES',
+    '  COLLECT + COMPETE',
+  ],
+  'PROJECTS': [
+    '> PLAYR',
+    '  $5K PITCH GRANT',
+    '  + VC MENTORING',
+    '',
+    '> MYCELIUM',
+    '  AGENTIC AI LAYER',
+    '  JIRA + GITHUB + PRS',
+    '',
+    '> HOMELAB CLOUD',
+    '  + LSTM STOCK MODEL',
+    '',
+    '> FERDINAND',
+    '  VOICE-CONTROL OS',
+    '',
+    '> FISH ALERT',
+    '  SCAM PROTECTION',
+    '',
+    'TAP SCREEN -> GITHUB',
   ],
 };
 
@@ -192,31 +216,24 @@ export function makeCartridgeScreenMaterial(title) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // Title — chunky display font with subtle drop-shadow
+  // Title with subtle drop shadow + underline
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `400 110px ${F_DISPLAY}`;
+  ctx.font = `400 96px ${F_DISPLAY}`;
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.fillText(title, 514, 124);
+  ctx.fillText(title, 514, 110);
   ctx.fillStyle = '#1d1d1d';
-  ctx.fillText(title, 512, 120);
+  ctx.fillText(title, 512, 106);
+  ctx.fillRect(140, 178, 744, 4);
 
-  // Underline
-  ctx.fillStyle = '#1d1d1d';
-  ctx.fillRect(140, 200, 744, 4);
-
-  // Content list
-  ctx.font = `600 60px ${F_LABEL}`;
-  ctx.fillStyle = '#222222';
-  ctx.textAlign = 'left';
-  const items = CART_CONTENT[title] || ['NO DATA'];
-  let y = 290;
-  for (const line of items) {
-    ctx.fillText(line, 110, y);
-    y += 100;
+  // Body — special-cased per cart
+  if (title === 'CONTACT') {
+    drawContactBody(ctx);
+  } else {
+    drawListBody(ctx, CART_CONTENT[title] || ['NO DATA']);
   }
 
-  // pixel grid for that LCD feel
+  // pixel grid for the LCD feel
   ctx.fillStyle = 'rgba(40, 45, 60, 0.08)';
   for (let yy = 0; yy < 1024; yy += 5) ctx.fillRect(0, yy, 1024, 1);
   for (let xx = 0; xx < 1024; xx += 5) ctx.fillRect(xx, 0, 1, 1024);
@@ -243,6 +260,124 @@ export function makeCartridgeScreenMaterial(title) {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
+}
+
+function drawListBody(ctx, items) {
+  // Auto-tighten line-height when there are a lot of lines
+  const lineH = items.length > 12 ? 56 : (items.length > 8 ? 66 : 80);
+  const fontPx = items.length > 12 ? 44 : (items.length > 8 ? 50 : 56);
+  ctx.font = `600 ${fontPx}px ${F_LABEL}`;
+  ctx.fillStyle = '#222222';
+  ctx.textAlign = 'left';
+  let y = 240;
+  for (const line of items) {
+    ctx.fillText(line, 100, y);
+    y += lineH;
+  }
+}
+
+function drawContactBody(ctx) {
+  // ===== GitHub block (top half) =====
+  drawGithubIcon(ctx, 130, 280, 160);
+  ctx.fillStyle = '#1d1d1d';
+  ctx.font = `700 56px ${F_LABEL}`;
+  ctx.textAlign = 'left';
+  ctx.fillText('GITHUB', 320, 320);
+  ctx.font = `600 38px ${F_LABEL}`;
+  ctx.fillStyle = '#444444';
+  ctx.fillText('YUVAANSHKAPILA', 320, 380);
+
+  // divider
+  ctx.fillStyle = '#1d1d1d';
+  ctx.fillRect(140, 510, 744, 3);
+
+  // ===== LinkedIn block (bottom half) =====
+  drawLinkedInIcon(ctx, 130, 580, 160);
+  ctx.fillStyle = '#1d1d1d';
+  ctx.font = `700 56px ${F_LABEL}`;
+  ctx.fillText('LINKEDIN', 320, 620);
+  ctx.font = `600 38px ${F_LABEL}`;
+  ctx.fillStyle = '#444444';
+  ctx.fillText('/IN/YUVAANSH-KAPILA', 320, 680);
+
+  // hint
+  ctx.font = `600 32px ${F_LABEL}`;
+  ctx.fillStyle = '#777';
+  ctx.textAlign = 'center';
+  ctx.fillText('TAP TO OPEN', 512, 920);
+}
+
+/* ----- Pixelated GitHub octocat icon ----- */
+function drawGithubIcon(ctx, x, y, size) {
+  // dark rounded square background
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(x, y, size, size, 18);
+  ctx.fill();
+
+  // pixel-art octocat in white — drawn from a 12×12 grid
+  // 1 = white, 0 = dark, dot pattern hand-laid
+  const grid = [
+    '............',
+    '....1111....',
+    '..11111111..',
+    '.1111111111.',
+    '1.11111111.1',
+    '1.11111111.1',
+    '1111111111111'.slice(0,12),
+    '1.11111111.1',
+    '..1.1.1..1..',
+    '..1.....1...',
+    '...11.11....',
+    '............',
+  ];
+  const cell = size / 14;
+  const ox = x + cell;
+  const oy = y + cell;
+  ctx.fillStyle = '#ffffff';
+  for (let r = 0; r < grid.length; r++) {
+    for (let cI = 0; cI < grid[r].length; cI++) {
+      if (grid[r][cI] === '1') {
+        ctx.fillRect(ox + cI * cell, oy + r * cell, cell, cell);
+      }
+    }
+  }
+}
+
+/* ----- Pixelated LinkedIn 'in' icon ----- */
+function drawLinkedInIcon(ctx, x, y, size) {
+  // LinkedIn blue background
+  ctx.fillStyle = '#0a66c2';
+  ctx.beginPath();
+  ctx.roundRect(x, y, size, size, 18);
+  ctx.fill();
+
+  // pixel art 'in' — 'i' on left, 'n' on right
+  const grid = [
+    '............',
+    '............',
+    '..11..1111..',
+    '..11..1111..',
+    '......11.11.',
+    '..11..11.11.',
+    '..11..11.11.',
+    '..11..11.11.',
+    '..11..11.11.',
+    '..11..11.11.',
+    '............',
+    '............',
+  ];
+  const cell = size / 14;
+  const ox = x + cell;
+  const oy = y + cell;
+  ctx.fillStyle = '#ffffff';
+  for (let r = 0; r < grid.length; r++) {
+    for (let cI = 0; cI < grid[r].length; cI++) {
+      if (grid[r][cI] === '1') {
+        ctx.fillRect(ox + cI * cell, oy + r * cell, cell, cell);
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------- screen — boot

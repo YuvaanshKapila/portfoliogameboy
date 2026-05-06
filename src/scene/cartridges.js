@@ -16,8 +16,9 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 const CART_TITLES = [
   { title: 'PROJECTS',   accent: '#e7332e' },
   { title: 'ABOUT ME',   accent: '#2c5fce' },
-  { title: 'HOBBIES',    accent: '#2eb748' },
   { title: 'EXPERIENCE', accent: '#ee7e2e' },
+  { title: 'HOBBIES',    accent: '#2eb748' },
+  { title: 'CONTACT',    accent: '#9d3bd1' },
 ];
 
 export function buildCartridgeBasket() {
@@ -38,11 +39,10 @@ export function buildCartridgeBasket() {
     sheenColor: new THREE.Color(0x4a2a14),
   });
 
-  // Sized so 4 cartridges sit flat inside, labels facing up, with NO
-  // overlap so every label is fully readable from the top-down camera.
-  const inW = 0.46;       // basket interior width  (scaled up 1.4x)
-  const inL = 1.65;       // basket interior length (scaled up 1.4x)
-  const wallH = 0.10;     // short walls — label visibility comes first
+  // Sized so all FIVE cartridges sit flat inside with no overlap.
+  const inW = 0.46;
+  const inL = 1.95;       // longer to fit 5 carts
+  const wallH = 0.10;
   const wallT = 0.024;
   const baseT = 0.020;
   const outW = inW + wallT * 2;
@@ -178,11 +178,12 @@ export function buildCartridgeBasket() {
     labelBottom.raycast = noRaycast;
     cart.add(labelBottom);
 
-    // Laid flat in the basket, lined up along Z, with a small gap
-    // between each so all four labels are fully readable.
-    const gap = (inL - cartL * 4) / 3;
+    // Laid flat in the basket, lined up along Z with a small gap
+    // between each so every label is readable.
+    const n = CART_TITLES.length;
+    const gap = (inL - cartL * n) / Math.max(1, n - 1);
     cart.position.set(
-      0,                                              // centered X
+      0,
       baseT + cartH / 2,
       -inL / 2 + cartL / 2 + i * (cartL + gap),
     );

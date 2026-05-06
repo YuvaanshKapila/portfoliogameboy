@@ -524,7 +524,33 @@ export function setupInteractions({
     pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
 
-    // 1) Buttons on the Game Boy
+    // 1) LCD click — opens URLs when a cart's content is showing
+    if (lcd && currentCart) {
+      const lcdHits = raycaster.intersectObject(lcd, false);
+      if (lcdHits.length > 0) {
+        const title = currentCart.userData.title;
+        const uv = lcdHits[0].uv;
+        if (title === 'PROJECTS') {
+          openUrl('https://github.com/YuvaanshKapila?tab=repositories');
+          return;
+        }
+        if (title === 'CONTACT') {
+          // top half of the screen → GitHub, bottom half → LinkedIn
+          // (UV.y in three.js: 0 is bottom of texture, 1 is top.
+          //  Our texture has GitHub drawn near the top of the canvas
+          //  which becomes the BOTTOM of UV space, so we flip.)
+          const y = uv ? uv.y : 0.5;
+          if (y > 0.5) {
+            openUrl('https://github.com/YuvaanshKapila');
+          } else {
+            openUrl('https://www.linkedin.com/in/yuvaansh-kapila-3b4bab364/');
+          }
+          return;
+        }
+      }
+    }
+
+    // 2) Buttons on the Game Boy
     const hits = raycaster.intersectObject(gameBoy, true);
     for (const hit of hits) {
       let node = hit.object;
@@ -540,8 +566,7 @@ export function setupInteractions({
       }
     }
 
-    // 2) Cartridges — tap-to-insert (works on both PC click and
-    //    mobile tap). A snapped cart taps to eject.
+    // 3) Cartridges — tap-to-insert. Snapped cart → tap to eject.
     const cartHits = raycaster.intersectObjects(cartridges, true);
     if (cartHits.length > 0) {
       let cart = cartHits[0].object;
@@ -596,6 +621,10 @@ export function setupInteractions({
       }
     }
     step();
+  }
+
+  function openUrl(url) {
+    try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (_) {}
   }
 
   function ejectCart(cart) {
