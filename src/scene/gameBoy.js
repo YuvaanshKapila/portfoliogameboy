@@ -1,360 +1,359 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {
-  matBodyLight, matBezel, matMaroon, matBlack, matMetal, matRubber,
-  makeScreenMaterial, makeSilkscreenMaterial,
+  matBodyLight, matBezel, matMaroon, matBlackPlastic,
+  matSwitchKnob, matRubberMatte,
+  makeScreenMaterial, makeSilkscreenMaterial, makeTaglineMaterial,
+  makeButtonLetterMaterial, makeMicroLabel,
 } from '../utils/materials.js';
 
 /**
- * Construct a Nintendo Game Boy DMG-01 from primitive geometry.
+ * Nintendo Game Boy DMG-01 (1989).
  *
- * Scene convention:
+ * Geometry conventions:
  *   +X right, +Y up, +Z toward camera.
- *   The device lies flat on the desk. Front face points up (+Y).
- *   Long axis runs along Z (screen toward -Z, controls toward +Z).
+ *   Device lies flat on the desk. Front face points up (+Y).
+ *   Long axis runs along Z. -Z = top edge (cart slot, power switch),
+ *                          +Z = bottom edge.
  *
- * Returns a THREE.Group anchored at the device's geometric center on
- * the table surface so callers can position/rotate it as a single unit.
+ * Reference notes (from photos and DMG-01 specs):
+ *   - Outer dims: 90 × 148 × 32 mm
+ *   - Power switch: top-left edge, slides L→R, three molded grip ridges
+ *   - Speaker: bottom-right corner, six diagonal slots cut at ~-25°
+ *   - Wordmark "Nintendo® GAME BOY™" sits centered above the screen
+ *   - Tagline "DOT MATRIX WITH STEREO SOUND" centered below the screen,
+ *     with a mustard-yellow "WITH"
+ *   - "BATTERY" label + red LED to the left of the screen
+ *   - "PHONES" label on the lower-left front face
  */
 export function buildGameBoy() {
   const gb = new THREE.Group();
   gb.name = 'gameboy';
 
-  // Real DMG-01 is 90 × 148 × 32 mm. Using 1 unit ≈ 10 cm gives:
-  const W = 0.92;          // X — short axis of the front face
-  const D = 0.33;          // Y — body depth (thickness)
-  const L = 1.48;          // Z — long axis (screen near -Z, speaker near +Z)
+  // Scene units: 1 ≈ 10 cm.
+  const W = 0.92;          // X — short axis
+  const D = 0.33;          // Y — body depth
+  const L = 1.48;          // Z — long axis
+  const halfL = L / 2;
 
-  // ---- Body (rounded slab) ----
-  const bodyGeo = new RoundedBoxGeometry(W, D, L, 6, 0.045);
-  const body = new THREE.Mesh(bodyGeo, matBodyLight);
+  // ---------- BODY ----------
+  const body = new THREE.Mesh(
+    new RoundedBoxGeometry(W, D, L, 6, 0.045),
+    matBodyLight,
+  );
   body.castShadow = true;
   body.receiveShadow = true;
   body.position.y = D / 2;
   gb.add(body);
 
-  // Front-face Y coordinate: a hair above body top so we don't z-fight
-  const frontY = D / 2 + D / 2 + 0.0005;
+  // Front-face Y plane (just above the body's top to avoid z-fighting)
+  const frontY = D + 0.0008;
 
-  // ---- Screen bezel (recessed dark plate covering the upper third) ----
+  // ---------- BEZEL (recessed dark plate around the screen) ----------
   const bezelW = 0.78;
   const bezelL = 0.66;
   const bezelD = 0.022;
-  const bezelGeo = new RoundedBoxGeometry(bezelW, bezelD, bezelL, 4, 0.025);
-  const bezel = new THREE.Mesh(bezelGeo, matBezel);
-  bezel.position.set(0, frontY - bezelD / 2 + 0.001, -0.30);
+  const bezel = new THREE.Mesh(
+    new RoundedBoxGeometry(bezelW, bezelD, bezelL, 4, 0.025),
+    matBezel,
+  );
+  bezel.position.set(0, D + bezelD / 2 - 0.018, -0.30);
   bezel.castShadow = false;
   bezel.receiveShadow = true;
   gb.add(bezel);
 
-  // ---- The LCD itself ----
-  const screenGeo = new THREE.PlaneGeometry(0.50, 0.46);
-  const screen = new THREE.Mesh(screenGeo, makeScreenMaterial());
+  // The actual LCD pane
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.50, 0.46),
+    makeScreenMaterial(),
+  );
   screen.rotation.x = -Math.PI / 2;
-  screen.position.set(0, frontY + 0.001, -0.30);
+  screen.position.set(0, D + bezelD / 2 - 0.006, -0.30);
   gb.add(screen);
 
-  // Tiny "BATTERY" indicator dot to the left of the screen (DMG had a hole here)
-  const batDot = new THREE.Mesh(
+  // tiny "BATTERY" indicator hole on the bezel, left of the screen
+  const batHole = new THREE.Mesh(
     new THREE.CircleGeometry(0.012, 24),
-    new THREE.MeshStandardMaterial({ color: 0x6e6c63, roughness: 0.6 }),
+    new THREE.MeshStandardMaterial({ color: 0x05050a, roughness: 0.5 }),
   );
-  batDot.rotation.x = -Math.PI / 2;
-  batDot.position.set(-0.31, frontY + 0.0009, -0.30);
-  gb.add(batDot);
+  batHole.rotation.x = -Math.PI / 2;
+  batHole.position.set(-0.32, D + bezelD / 2 - 0.005, -0.30);
+  gb.add(batHole);
 
-  // ---- "Nintendo® GAME BOY™" silkscreen above the screen ----
-  const silkTop = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.62, 0.085),
+  // ---------- WORDMARK on the bezel above the screen ----------
+  const wordmark = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.66, 0.08),
     makeSilkscreenMaterial(),
   );
-  silkTop.rotation.x = -Math.PI / 2;
-  silkTop.position.set(0, frontY + 0.0008, -0.62);
-  gb.add(silkTop);
+  wordmark.rotation.x = -Math.PI / 2;
+  wordmark.position.set(0, D + bezelD / 2 - 0.005, -0.59);
+  gb.add(wordmark);
 
-  // ---- "DOT MATRIX WITH STEREO SOUND" tagline below screen on bezel ----
-  // (rendered as a separate small canvas plane to keep crisp)
-  const taglinePlane = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.55, 0.05),
+  // ---------- TAGLINE on the bezel below the screen ----------
+  const tagline = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.62, 0.045),
     makeTaglineMaterial(),
   );
-  taglinePlane.rotation.x = -Math.PI / 2;
-  taglinePlane.position.set(0, frontY + 0.0008, -0.04);
-  gb.add(taglinePlane);
+  tagline.rotation.x = -Math.PI / 2;
+  tagline.position.set(0, D + bezelD / 2 - 0.005, -0.04);
+  gb.add(tagline);
 
-  // ---- Power LED ----
-  const ledGeo = new THREE.CircleGeometry(0.018, 32);
-  const ledMat = new THREE.MeshStandardMaterial({
-    color: 0xff3838, emissive: 0xff2222, emissiveIntensity: 0.7, roughness: 0.35,
-  });
-  const led = new THREE.Mesh(ledGeo, ledMat);
+  // ---------- POWER LED + "BATTERY" silkscreen ----------
+  const led = new THREE.Mesh(
+    new THREE.CircleGeometry(0.018, 32),
+    new THREE.MeshStandardMaterial({
+      color: 0xff3838, emissive: 0xff2222, emissiveIntensity: 0.7, roughness: 0.35,
+    }),
+  );
   led.rotation.x = -Math.PI / 2;
-  led.position.set(-0.31, frontY + 0.001, 0.05);
+  led.position.set(-0.32, frontY, 0.04);
   gb.add(led);
 
-  // small "BATTERY" label beside LED — built as a tiny canvas texture
-  const ledLabel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.16, 0.025),
-    makeMicroLabel('BATTERY', 0x6a6a62),
+  const batteryLabel = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.16, 0.026),
+    makeMicroLabel('BATTERY', { color: '#5e5b53', size: 200, letterSpacing: 8 }),
   );
-  ledLabel.rotation.x = -Math.PI / 2;
-  ledLabel.position.set(-0.18, frontY + 0.0008, 0.05);
-  gb.add(ledLabel);
+  batteryLabel.rotation.x = -Math.PI / 2;
+  batteryLabel.position.set(-0.21, frontY, 0.04);
+  gb.add(batteryLabel);
 
-  // ---- D-Pad (cross of two stretched rounded boxes) ----
+  // =========================================================
+  // CONTROLS
+  // =========================================================
+
+  // ---------- D-Pad ----------
+  const dpadArmH = 0.020;
   const dpad = new THREE.Group();
-  const dpadArmH = 0.018;
-  const dpadHGeo = new RoundedBoxGeometry(0.18, dpadArmH, 0.06, 3, 0.012);
-  const dpadVGeo = new RoundedBoxGeometry(0.06, dpadArmH, 0.18, 3, 0.012);
-  const dpadH = new THREE.Mesh(dpadHGeo, matBlack);
-  const dpadV = new THREE.Mesh(dpadVGeo, matBlack);
+
+  const dpadH = new THREE.Mesh(
+    new RoundedBoxGeometry(0.20, dpadArmH, 0.066, 3, 0.012),
+    matBlackPlastic,
+  );
+  const dpadV = new THREE.Mesh(
+    new RoundedBoxGeometry(0.066, dpadArmH, 0.20, 3, 0.012),
+    matBlackPlastic,
+  );
   dpadH.castShadow = true; dpadV.castShadow = true;
+  dpadH.receiveShadow = true; dpadV.receiveShadow = true;
   dpad.add(dpadH);
   dpad.add(dpadV);
-  // Center pivot dimple
-  const dpadDimpleGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.006, 24);
-  const dpadDimple = new THREE.Mesh(dpadDimpleGeo, new THREE.MeshStandardMaterial({
-    color: 0x070605, roughness: 0.9, metalness: 0,
-  }));
-  dpadDimple.position.y = dpadArmH / 2 + 0.0001;
+
+  // center dimple (debossed circle)
+  const dpadDimple = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.020, 0.020, 0.005, 24),
+    new THREE.MeshStandardMaterial({ color: 0x070605, roughness: 0.85 }),
+  );
+  dpadDimple.position.y = dpadArmH / 2 - 0.001;
   dpad.add(dpadDimple);
-  dpad.position.set(-0.26, frontY + dpadArmH / 2 - 0.0001, 0.34);
+
+  dpad.position.set(-0.26, frontY + dpadArmH / 2 - 0.0015, 0.34);
   gb.add(dpad);
 
-  // ---- A and B buttons (cylinders, rotated 25° around Y for that cocked look) ----
-  const buttonRadius = 0.06;
-  const buttonHeight = 0.022;
-  const abGroup = new THREE.Group();
+  // ---------- A / B buttons ----------
+  const buttonRadius = 0.062;
+  const buttonHeight = 0.024;
 
-  function makeRoundButton(letter) {
+  function makeFaceButton(letter, dx, dz) {
     const grp = new THREE.Group();
-    const geo = new THREE.CylinderGeometry(buttonRadius, buttonRadius * 0.95, buttonHeight, 32);
-    const m = new THREE.Mesh(geo, matMaroon);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    grp.add(m);
-    // letter decal on top
-    const labelMat = makeMicroLabel(letter, 0xf2d8c8, 'italic 700 220px "Times New Roman", serif');
-    const lbl = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.07), labelMat);
-    lbl.rotation.x = -Math.PI / 2;
-    lbl.position.y = buttonHeight / 2 + 0.0005;
-    grp.add(lbl);
+
+    const cyl = new THREE.Mesh(
+      new THREE.CylinderGeometry(buttonRadius, buttonRadius * 0.93, buttonHeight, 48),
+      matMaroon,
+    );
+    cyl.castShadow = true;
+    cyl.receiveShadow = true;
+    grp.add(cyl);
+
+    // Italic letter molded into the top — engraved canvas decal
+    const letterPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(buttonRadius * 1.4, buttonRadius * 1.4),
+      makeButtonLetterMaterial(letter),
+    );
+    letterPlane.rotation.x = -Math.PI / 2;
+    letterPlane.position.y = buttonHeight / 2 + 0.0006;
+    grp.add(letterPlane);
+
+    grp.position.set(dx, buttonHeight / 2, dz);
     return grp;
   }
 
-  const btnB = makeRoundButton('B');
-  const btnA = makeRoundButton('A');
-  btnB.position.set(-0.085, buttonHeight / 2, 0);
-  btnA.position.set(+0.085, buttonHeight / 2, -0.04);
-  abGroup.add(btnB);
-  abGroup.add(btnA);
-  abGroup.position.set(0.21, frontY - 0.0001, 0.36);
+  const abGroup = new THREE.Group();
+  abGroup.add(makeFaceButton('B', -0.085, +0.020));
+  abGroup.add(makeFaceButton('A', +0.085, -0.020));
+  abGroup.position.set(0.21, frontY - 0.001, 0.36);
   gb.add(abGroup);
 
-  // engraved A and B letters next to (below) buttons
-  const letterB = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.05, 0.02),
-    makeMicroLabel('B', 0x4a4842, 'bold 200px Geist, sans-serif'),
-  );
-  letterB.rotation.x = -Math.PI / 2;
-  letterB.position.set(0.125, frontY + 0.0008, 0.43);
-  gb.add(letterB);
+  // engraved A / B labels next to (below-right of) the buttons
+  const abLetterMat = (l) => makeMicroLabel(l, {
+    color: '#5a574e', size: 220, weight: 700, italic: true, width: 256, height: 256,
+  });
+  const lblB = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.05), abLetterMat('B'));
+  lblB.rotation.x = -Math.PI / 2;
+  lblB.position.set(0.135, frontY, 0.45);
+  gb.add(lblB);
 
-  const letterA = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.05, 0.02),
-    makeMicroLabel('A', 0x4a4842, 'bold 200px Geist, sans-serif'),
-  );
-  letterA.rotation.x = -Math.PI / 2;
-  letterA.position.set(0.295, frontY + 0.0008, 0.39);
-  gb.add(letterA);
+  const lblA = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.05), abLetterMat('A'));
+  lblA.rotation.x = -Math.PI / 2;
+  lblA.position.set(0.305, frontY, 0.41);
+  gb.add(lblA);
 
-  // ---- START and SELECT (capsule pills, angled -25° around Y) ----
+  // ---------- START / SELECT (rubber pills, cocked at -25°) ----------
   const ssGroup = new THREE.Group();
   ssGroup.rotation.y = THREE.MathUtils.degToRad(-25);
+  ssGroup.position.set(0, 0, 0.62);
 
-  function makePill(text) {
+  function makePill(label, x) {
     const grp = new THREE.Group();
     const cap = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.018, 0.10, 6, 16),
-      matBlack,
+      new THREE.CapsuleGeometry(0.020, 0.10, 6, 16),
+      matRubberMatte,
     );
     cap.rotation.z = Math.PI / 2;
     cap.castShadow = true;
+    cap.receiveShadow = true;
     grp.add(cap);
-    // label below capsule
+
     const lbl = new THREE.Mesh(
       new THREE.PlaneGeometry(0.13, 0.022),
-      makeMicroLabel(text, 0x4a4842, 'bold 170px Geist, sans-serif'),
+      makeMicroLabel(label, { color: '#5a574e', size: 200, weight: 600, letterSpacing: 6 }),
     );
     lbl.rotation.x = -Math.PI / 2;
-    lbl.position.set(0, -frontY + 0.0008, 0.05);
-    // Note: lbl.y here will be re-anchored when we add to scene
+    lbl.position.set(0, -0.020 + 0.0005, 0.044);
     grp.add(lbl);
-    return { grp, cap, lbl };
-  }
 
-  const pillSelect = makePill('SELECT');
-  const pillStart  = makePill('START');
-  pillSelect.grp.position.set(-0.09, frontY + 0.018, 0);
-  pillStart.grp.position.set(0.09, frontY + 0.018, 0);
-  // labels need to sit on the front face plane, not on the pill group local frame
-  pillSelect.lbl.position.set(0, -0.018 + 0.0001, 0.045);
-  pillStart.lbl.position.set(0, -0.018 + 0.0001, 0.045);
-  ssGroup.add(pillSelect.grp);
-  ssGroup.add(pillStart.grp);
-  ssGroup.position.set(0, 0, 0.62);
+    grp.position.set(x, frontY + 0.020 - D, 0);
+    return grp;
+  }
+  ssGroup.add(makePill('SELECT', -0.09));
+  ssGroup.add(makePill('START',  +0.09));
   gb.add(ssGroup);
 
-  // ---- Speaker grille (six angled slats, lower-right corner) ----
+  // ---------- Speaker (six diagonal slots cut into the case) ----------
   const speakerGroup = new THREE.Group();
   speakerGroup.rotation.y = THREE.MathUtils.degToRad(-25);
-  const slatGeo = new RoundedBoxGeometry(0.022, 0.012, 0.18, 3, 0.008);
-  const slatMat = new THREE.MeshStandardMaterial({
-    color: 0x504e47, roughness: 0.55, metalness: 0.15,
-  });
-  for (let i = 0; i < 6; i++) {
-    const s = new THREE.Mesh(slatGeo, slatMat);
-    s.position.set(i * 0.038 - 0.095, frontY + 0.006, 0);
-    s.castShadow = true;
-    speakerGroup.add(s);
-  }
   speakerGroup.position.set(0.27, 0, 0.62);
+
+  // slat geometry — long thin grooves with a darker insert visible inside
+  for (let i = 0; i < 6; i++) {
+    const slot = new THREE.Group();
+
+    // outer raised case wall (the molded ridge between slots)
+    // we represent each slot as a recessed dark insert sitting just
+    // below the front face, with the surrounding case forming the gap
+    const insert = new THREE.Mesh(
+      new RoundedBoxGeometry(0.024, 0.012, 0.18, 3, 0.006),
+      matBlackPlastic,
+    );
+    insert.position.set(i * 0.040 - 0.10, frontY - 0.006, 0);
+    slot.add(insert);
+
+    speakerGroup.add(slot);
+  }
   gb.add(speakerGroup);
 
-  // ---- "Phones" tiny label opposite the speaker ----
+  // ---------- "PHONES" label on the lower-left front face ----------
   const phonesLbl = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.08, 0.018),
-    makeMicroLabel('PHONES', 0x70706a, 'bold 170px Geist, sans-serif'),
+    new THREE.PlaneGeometry(0.12, 0.022),
+    makeMicroLabel('PHONES', { color: '#5e5b53', size: 200, letterSpacing: 8 }),
   );
   phonesLbl.rotation.x = -Math.PI / 2;
-  phonesLbl.position.set(-0.30, frontY + 0.0008, 0.65);
+  phonesLbl.position.set(-0.32, frontY, 0.62);
   gb.add(phonesLbl);
 
   // =========================================================
-  // EDGE DETAILS — top edge has cart slot + power switch
+  // POWER SWITCH (top-left edge of the unit)
   // =========================================================
+  // The DMG power switch is a horizontal slider with three molded
+  // grip ridges. It sits in a recessed slot on the top edge of the
+  // case, near the left corner. We tilt the device slightly so this
+  // is visible from the top-down camera.
 
-  // top edge Y range: 0..D, top Z = -L/2
-  const topZ = -L / 2;
+  const powerGroup = new THREE.Group();
+  powerGroup.position.set(-W / 2 + 0.16, D - 0.005, -halfL + 0.012);
 
-  // Cartridge slot (a recessed dark groove on the back side, but DMG had it on the BACK
-  // of the device — since we lay it face-up, the cart slot is on the underside.
-  // Since we view from above, place a subtle indicator on the top edge instead.)
-  const cartSlot = new THREE.Mesh(
-    new THREE.BoxGeometry(0.4, 0.012, 0.018),
-    new THREE.MeshStandardMaterial({ color: 0x1a1815, roughness: 0.7, metalness: 0.2 }),
-  );
-  cartSlot.position.set(0, D / 2 + 0.001, topZ - 0.001);
-  // actually rotate to nestle into the top edge facing -Z
-  cartSlot.position.set(0, D - 0.018, topZ + 0.005);
-  gb.add(cartSlot);
-
-  // Power switch slider on top-left edge
-  const switchBase = new THREE.Mesh(
-    new THREE.BoxGeometry(0.16, 0.06, 0.04),
+  // Recessed slot (dark cavity)
+  const slot = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.022, 0.05),
     matBezel,
   );
-  switchBase.position.set(-W / 2 + 0.13, D - 0.04, topZ + 0.012);
-  gb.add(switchBase);
+  slot.position.set(0, 0.011, 0);
+  powerGroup.add(slot);
 
-  const switchKnob = new THREE.Mesh(
-    new THREE.BoxGeometry(0.05, 0.04, 0.03),
-    new THREE.MeshStandardMaterial({ color: 0xb6b1a2, roughness: 0.5, metalness: 0.3 }),
+  // The slider knob — sits inside the slot, slid toward "OFF" (left)
+  const knob = new THREE.Mesh(
+    new RoundedBoxGeometry(0.066, 0.030, 0.038, 3, 0.005),
+    matSwitchKnob,
   );
-  switchKnob.position.set(-W / 2 + 0.16, D - 0.04, topZ + 0.018);
-  gb.add(switchKnob);
+  knob.position.set(-0.030, 0.025, 0);
+  knob.castShadow = true;
+  powerGroup.add(knob);
 
-  // OFF · ON tiny label on the front face just below the switch
-  const swLbl = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.18, 0.022),
-    makeMicroLabel('◁ OFF · ON ▷', 0x6a6a62, 'bold 140px Geist, sans-serif'),
+  // Three molded grip ridges across the top of the knob
+  for (let i = 0; i < 3; i++) {
+    const ridge = new THREE.Mesh(
+      new RoundedBoxGeometry(0.005, 0.005, 0.03, 2, 0.002),
+      new THREE.MeshStandardMaterial({ color: 0x5a574e, roughness: 0.6 }),
+    );
+    ridge.position.set(-0.030 + (i - 1) * 0.014, 0.041, 0);
+    powerGroup.add(ridge);
+  }
+
+  gb.add(powerGroup);
+
+  // OFF / ON silkscreen on the front face just below the switch slot
+  const offLabel = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.05, 0.022),
+    makeMicroLabel('OFF', { color: '#5e5b53', size: 200, letterSpacing: 4 }),
   );
-  swLbl.rotation.x = -Math.PI / 2;
-  swLbl.position.set(-W / 2 + 0.16, frontY + 0.0008, -L / 2 + 0.08);
-  gb.add(swLbl);
+  offLabel.rotation.x = -Math.PI / 2;
+  offLabel.position.set(-W / 2 + 0.075, frontY, -halfL + 0.06);
+  gb.add(offLabel);
+
+  const onLabel = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.04, 0.022),
+    makeMicroLabel('ON', { color: '#5e5b53', size: 200, letterSpacing: 4 }),
+  );
+  onLabel.rotation.x = -Math.PI / 2;
+  onLabel.position.set(-W / 2 + 0.235, frontY, -halfL + 0.06);
+  gb.add(onLabel);
+
+  // tiny tick marks between OFF · ON
+  const tickMat = new THREE.MeshStandardMaterial({ color: 0x6a675f });
+  for (let i = 0; i < 5; i++) {
+    const tick = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.004, 0.012),
+      tickMat,
+    );
+    tick.rotation.x = -Math.PI / 2;
+    tick.position.set(-W / 2 + 0.115 + i * 0.02, frontY, -halfL + 0.06);
+    gb.add(tick);
+  }
 
   // =========================================================
-  // RIGHT-edge volume wheel
+  // RIGHT EDGE: ridged volume wheel
   // =========================================================
   const volWheel = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.028, 0.028, 0.18, 24),
+    new THREE.CylinderGeometry(0.030, 0.030, 0.18, 28),
     new THREE.MeshStandardMaterial({ color: 0x2a2722, roughness: 0.55, metalness: 0.4 }),
   );
   volWheel.rotation.x = Math.PI / 2;
   volWheel.position.set(W / 2 - 0.005, D / 2, -0.46);
   gb.add(volWheel);
-  // ridges
-  for (let i = 0; i < 14; i++) {
-    const ang = (i / 14) * Math.PI * 2;
-    const r = 0.029;
+  for (let i = 0; i < 18; i++) {
+    const ang = (i / 18) * Math.PI * 2;
+    const r = 0.031;
     const ridge = new THREE.Mesh(
-      new THREE.BoxGeometry(0.004, 0.006, 0.18),
-      new THREE.MeshStandardMaterial({ color: 0x14110d, roughness: 0.8 }),
+      new THREE.BoxGeometry(0.003, 0.005, 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x14110d, roughness: 0.85 }),
     );
-    ridge.position.set(W / 2 - 0.005 + Math.cos(ang) * r, D / 2 + Math.sin(ang) * r, -0.46);
-    ridge.rotation.x = Math.PI / 2;
+    ridge.position.set(
+      W / 2 - 0.005 + Math.cos(ang) * r,
+      D / 2 + Math.sin(ang) * r,
+      -0.46,
+    );
     ridge.rotation.z = ang;
     gb.add(ridge);
   }
 
   return gb;
-}
-
-/* ----------------------------------------------------------------
-   Helpers — small canvas-texture builders for crisp 2D bits.
-   ---------------------------------------------------------------- */
-function makeTaglineMaterial() {
-  const c = document.createElement('canvas');
-  c.width = 1024; c.height = 96;
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, 1024, 96);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = 'italic 600 50px "Times New Roman", serif';
-
-  const baseY = 48;
-  // measure to lay out three colored runs
-  const left  = 'DOT MATRIX ';
-  const mid   = 'WITH';
-  const right = ' STEREO SOUND';
-  const lw = ctx.measureText(left).width;
-  const mw = ctx.measureText(mid).width;
-  const rw = ctx.measureText(right).width;
-  const total = lw + mw + rw;
-  let x = 512 - total / 2;
-  ctx.textAlign = 'left';
-
-  ctx.fillStyle = '#cfcabd';
-  ctx.fillText(left, x, baseY);
-  x += lw;
-  ctx.fillStyle = '#d8c54a';
-  ctx.fillText(mid, x, baseY);
-  x += mw;
-  ctx.fillStyle = '#cfcabd';
-  ctx.fillText(right, x, baseY);
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return new THREE.MeshStandardMaterial({
-    map: tex, transparent: true, depthWrite: false, roughness: 0.7,
-  });
-}
-
-function makeMicroLabel(text, color = 0x4a4842, font = 'bold 220px Geist, sans-serif') {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, 512, 128);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = font;
-  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
-  ctx.fillText(text, 256, 64);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return new THREE.MeshStandardMaterial({
-    map: tex, transparent: true, depthWrite: false, roughness: 0.75,
-  });
 }

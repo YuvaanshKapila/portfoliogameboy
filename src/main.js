@@ -8,6 +8,10 @@ import { buildGameBoy } from './scene/gameBoy.js';
 
 /* ------------------------------------------------------------------
    Entry — wires up renderer, camera, lights, scene, and animation.
+
+   We wait for web fonts to load before constructing the Game Boy so
+   its canvas-texture decals (Cabin Bold Italic, Jost) render correctly
+   instead of falling back to a default sans-serif.
    ------------------------------------------------------------------ */
 
 const canvas = document.getElementById('stage');
@@ -32,37 +36,56 @@ scene.background = new THREE.Color(0x0d0a06);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
+// ---------------- camera (top-down with a slight forward tilt) ----------------
+// Polar = ~18° off straight-down so we still see the top edge with the
+// power switch protruding. Distance is tight so the device fills the frame.
 const camera = new THREE.PerspectiveCamera(
-  35,
+  32,
   window.innerWidth / window.innerHeight,
   0.05,
   100,
 );
-camera.position.set(1.7, 2.2, 2.4);
+const camDist = 3.4;
+const camPolar = THREE.MathUtils.degToRad(18);  // 0 = straight down, 90 = horizon
+const camAzim  = THREE.MathUtils.degToRad(0);
+camera.position.set(
+  camDist * Math.sin(camPolar) * Math.sin(camAzim),
+  camDist * Math.cos(camPolar),
+  camDist * Math.sin(camPolar) * Math.cos(camAzim),
+);
 camera.lookAt(0, 0.15, 0);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
-controls.minDistance = 1.5;
+controls.minDistance = 1.6;
 controls.maxDistance = 5.5;
-controls.maxPolarAngle = THREE.MathUtils.degToRad(78);
-controls.minPolarAngle = THREE.MathUtils.degToRad(15);
+controls.minPolarAngle = THREE.MathUtils.degToRad(0);    // straight down allowed
+controls.maxPolarAngle = THREE.MathUtils.degToRad(72);
 controls.target.set(0, 0.15, 0);
 controls.enablePan = false;
 
-/* -------------------- build the scene -------------------- */
+/* ---------------- build the scene ---------------- */
 buildLighting(scene);
 buildTable(scene);
 
-const gameBoy = buildGameBoy();
-// Tip the device backward a touch so the screen catches the key light
-gameBoy.rotation.y = THREE.MathUtils.degToRad(-12);
-gameBoy.rotation.x = THREE.MathUtils.degToRad(-1.5);
-gameBoy.position.set(-0.05, 0, 0.1);
-scene.add(gameBoy);
+(async () => {
+  // Wait for the Cabin / Jost web fonts before drawing canvas textures —
+  // otherwise the silkscreen wordmark falls back to a plain sans-serif.
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (_) {}
+  }
 
-/* -------------------- resize -------------------- */
+  const gameBoy = buildGameBoy();
+  // Tip the device a few degrees forward so the top edge (with the power
+  // switch) catches the light and is clearly visible from above.
+  gameBoy.rotation.y = THREE.MathUtils.degToRad(-6);
+  gameBoy.rotation.x = THREE.MathUtils.degToRad(-6);  // top edge tilts up
+  gameBoy.position.set(0, 0, 0.05);
+  scene.add(gameBoy);
+})();
+
+/* ---------------- resize ---------------- */
 function onResize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -73,7 +96,7 @@ function onResize() {
 window.addEventListener('resize', onResize);
 onResize();
 
-/* -------------------- loop -------------------- */
+/* ---------------- loop ---------------- */
 function tick() {
   controls.update();
   renderer.render(scene, camera);
