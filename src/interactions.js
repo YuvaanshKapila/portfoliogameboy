@@ -386,26 +386,19 @@ export function setupInteractions({
     }
   }
 
-  // ---------------- per-frame snap-in (smooth slide) ----------------
-  // For carts marked as snapped, lerp position+rotation toward the
-  // slot pose every frame. Looks like the cart slides smoothly in
-  // rather than jumping.
+  // ---------------- per-frame snap-in (smooth slide, no flip) ----------------
+  // Position-only lerp toward the slot. Rotation is NOT changed — the
+  // cart keeps whatever orientation it had when grabbed. No 90° flip.
   function snapStep() {
     for (const cart of cartridges) {
       if (cart.userData.dragging) continue;
       if (!cart.userData.snapped) continue;
 
-      // position lerp in world space
       cart.getWorldPosition(_phWorld);
       _phWorld.lerp(slotWorld, SNAP_LERP);
       _targetLocal.copy(_phWorld);
       if (cart.parent) cart.parent.worldToLocal(_targetLocal);
       cart.position.copy(_targetLocal);
-
-      // rotation lerp toward upright
-      cart.rotation.x = THREE.MathUtils.lerp(cart.rotation.x, -Math.PI / 2, SNAP_LERP);
-      cart.rotation.y = THREE.MathUtils.lerp(cart.rotation.y, 0, SNAP_LERP);
-      cart.rotation.z = THREE.MathUtils.lerp(cart.rotation.z, 0, SNAP_LERP);
     }
   }
 

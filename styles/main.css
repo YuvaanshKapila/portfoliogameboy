@@ -37,3 +37,45 @@ body {
 @media (max-width: 640px) {
   .hint { font-size: 9px; letter-spacing: 2px; bottom: 16px; }
 }
+
+/* Cartoony 'INSERT HERE' sign that hovers above the cart slot.
+   Position is updated each frame in main.js by projecting the slot
+   anchor's world position to screen coords.                              */
+.insert-sign {
+  position: fixed;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 100;
+  transform: translate(-50%, -110%);
+  font-family: "Lilita One", "Bowlby One", "Arial Black", sans-serif;
+  text-align: center;
+  animation: insert-bob 1.2s ease-in-out infinite;
+  display: none;
+}
+.insert-sign-text {
+  display: inline-block;
+  font-size: 18px;
+  letter-spacing: 1px;
+  line-height: 1.1;
+  color: #fff8e7;
+  background: linear-gradient(180deg, #ff4848, #c01818);
+  border: 4px solid #fff8e7;
+  border-radius: 14px;
+  padding: 8px 14px 6px;
+  box-shadow: 4px 4px 0 #1a1410, 0 0 0 1px #1a1410;
+  text-shadow: 2px 2px 0 #6a0000;
+}
+.insert-sign-arrow {
+  font-size: 32px;
+  line-height: 1;
+  color: #ff4848;
+  text-shadow:
+    2px 0 0 #fff8e7, -2px 0 0 #fff8e7,
+    0 2px 0 #fff8e7, 0 -2px 0 #fff8e7,
+    3px 3px 0 #1a1410;
+  margin-top: 2px;
+}
+@keyframes insert-bob {
+  0%, 100% { transform: translate(-50%, -110%); }
+  50%      { transform: translate(-50%, calc(-110% - 10px)); }
+}

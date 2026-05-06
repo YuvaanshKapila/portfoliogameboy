@@ -76,10 +76,15 @@ camera.lookAt(camTarget);
 const orbit = new OrbitControls(camera, canvas);
 orbit.enableDamping = true;
 orbit.dampingFactor = 0.06;
-orbit.minDistance = 1.8;
-orbit.maxDistance = 6.5;
-orbit.minPolarAngle = THREE.MathUtils.degToRad(0);
-orbit.maxPolarAngle = THREE.MathUtils.degToRad(75);
+// Tight camera locks — a recruiter can't lose their bearings or
+// rotate the scene off-screen. Only small, presentation-friendly
+// adjustments are allowed.
+orbit.minDistance = 2.8;
+orbit.maxDistance = 4.2;
+orbit.minPolarAngle = THREE.MathUtils.degToRad(8);
+orbit.maxPolarAngle = THREE.MathUtils.degToRad(28);
+orbit.minAzimuthAngle = THREE.MathUtils.degToRad(-22);
+orbit.maxAzimuthAngle = THREE.MathUtils.degToRad(22);
 orbit.target.copy(camTarget);
 orbit.enablePan = false;
 
@@ -90,6 +95,9 @@ buildLighting(scene);
 buildTable(scene);
 
 let interactions = null;
+let gameBoyRef  = null;
+let cartridgesRef = null;
+let slotAnchorRef = null;
 
 (async () => {
   if (document.fonts && document.fonts.load) {
@@ -112,16 +120,16 @@ let interactions = null;
   }
 
   const gameBoy = buildGameBoy();
-  // Scale everything up for a more present hero object
   gameBoy.scale.setScalar(1.25);
-  gameBoy.position.set(0.30, 0, 0);   // shifted right of center
+  gameBoy.position.set(0.30, 0, 0);
   scene.add(gameBoy);
+  gameBoyRef = gameBoy;
+  slotAnchorRef = gameBoy.getObjectByName('cart-slot-anchor');
 
-  // Cartridge basket — positioned to the LEFT of the Game Boy so they
-  // share the desk together as a paired composition.
   const { group: cartGroup, cartridges } = buildCartridgeBasket();
   cartGroup.position.set(-0.95, 0, 0);
   scene.add(cartGroup);
+  cartridgesRef = cartridges;
 
   interactions = setupInteractions({
     scene, camera, renderer, orbit,
@@ -142,12 +150,42 @@ function onResize() {
 window.addEventListener('resize', onResize);
 onResize();
 
+/* ---------------- "INSERT HERE" sign tracking ---------------- */
+const signEl = document.getElementById('insert-sign');
+const _signWorld = new THREE.Vector3();
+const _signProj  = new THREE.Vector3();
+
+function updateInsertSign() {
+  if (!signEl || !slotAnchorRef) return;
+
+  // Hide once any cart is inserted
+  if (cartridgesRef && cartridgesRef.some(c => c.userData.snapped)) {
+    signEl.style.display = 'none';
+    return;
+  }
+
+  slotAnchorRef.getWorldPosition(_signWorld);
+  // bump the sign up a bit so it floats ABOVE the slot
+  _signWorld.y += 0.45;
+
+  _signProj.copy(_signWorld).project(camera);
+
+  // Behind the camera? hide
+  if (_signProj.z > 1) { signEl.style.display = 'none'; return; }
+
+  signEl.style.display = '';
+  signEl.style.left = ((_signProj.x * 0.5 + 0.5) * window.innerWidth)  + 'px';
+  signEl.style.top  = ((-_signProj.y * 0.5 + 0.5) * window.innerHeight) + 'px';
+}
+
+/* ---------------- render loop ---------------- */
 let _lastFrame = performance.now();
 function tick(now) {
-  const dt = Math.min((now - _lastFrame) / 1000, 0.05);  // cap at 50ms
+  const dt = Math.min((now - _lastFrame) / 1000, 0.05);
   _lastFrame = now;
   if (interactions) interactions.update(now, dt);
   orbit.update();
+  updateInsertSign();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
