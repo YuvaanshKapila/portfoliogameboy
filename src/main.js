@@ -63,9 +63,9 @@ const camera = new THREE.PerspectiveCamera(
   60,
 );
 // Initial camera: straight on, centered on the scene midpoint.
-// Pulled back a touch to accommodate the bigger Game Boy.
-const camDist  = 4.2;
-const camPolar = THREE.MathUtils.degToRad(12);
+// Pulled back further so the whole desk is visible at first glance.
+const camDist  = 5.2;
+const camPolar = THREE.MathUtils.degToRad(13);
 const camAzim  = THREE.MathUtils.degToRad(0);
 const camTarget = new THREE.Vector3(-0.30, 0.15, 0);
 
@@ -85,7 +85,7 @@ orbit.dampingFactor = 0.06;
 // rotate the scene off-screen. Only small, presentation-friendly
 // adjustments are allowed.
 orbit.minDistance = 3.4;
-orbit.maxDistance = 5.2;
+orbit.maxDistance = 6.5;
 orbit.minPolarAngle = THREE.MathUtils.degToRad(8);
 orbit.maxPolarAngle = THREE.MathUtils.degToRad(28);
 orbit.minAzimuthAngle = THREE.MathUtils.degToRad(-22);

@@ -38,13 +38,12 @@ export function setupInteractions({
   refreshSlotWorld();
 
   // Snap is release-based and constrained:
-  //   - drop must be within SNAP_RADIUS of the slot
-  //   - drop must be at/behind the slot Z plane (not on TOP of console)
-  // This way dropping a cart on the front face just lets it rest
-  // on top — only drops aimed at the actual slot snap in.
-  const SNAP_RADIUS    = 0.20;
-  const SNAP_Z_TOL     = 0.18;    // drop z must be <= slotWorld.z + this
-  const SNAP_LERP      = 0.28;    // faster slide-in so transit is brief
+  //   - drop within SNAP_RADIUS of the slot → snap
+  //   - drop at/behind the slot Z plane → snap (not on TOP of console)
+  // Forgiving radius so a drag-in feels easy.
+  const SNAP_RADIUS    = 0.42;
+  const SNAP_Z_TOL     = 0.30;
+  const SNAP_LERP      = 0.30;
 
   // CRITICAL: do NOT set transformGroup. With transformGroup=true,
   // DragControls always picks up cartridges[0] no matter which cart
@@ -192,9 +191,11 @@ export function setupInteractions({
     }
     currentCart = cart;
     refreshLcd();
+    playInsertSnap();
   }
 
   function hideCartContent() {
+    if (currentCart) playEjectClick();
     currentCart = null;
     refreshLcd();
   }
@@ -231,11 +232,35 @@ export function setupInteractions({
   const NIN_FONT    = 'italic 700 96px "Cabin", "Gill Sans MT", sans-serif';
   const NIN_TEXT    = 'Yuvaansh';   // was "Nintendo"
 
-  // Audio chime
+  // ---------------- Synth helpers + SFX ----------------
   let audioCtx = null;
-  function playBootChime() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function ensureAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
     if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function blip(freq, dur, vol = 0.06, type = 'square', when = 0) {
+    ensureAudio();
+    const t0 = audioCtx.currentTime + when;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t0);
+    o.stop(t0 + dur + 0.02);
+  }
+  function playButtonClick() { blip(880, 0.04, 0.05); }
+  function playInsertSnap()  { blip(380, 0.05, 0.09); blip(720, 0.07, 0.07, 'square', 0.05); }
+  function playEjectClick()  { blip(720, 0.04, 0.07); blip(360, 0.06, 0.06, 'square', 0.03); }
+
+  function playBootChime() {
+    ensureAudio();
     const t0 = audioCtx.currentTime;
     function tone(freq, start, dur, vol = 0.07) {
       const o = audioCtx.createOscillator();
@@ -400,6 +425,7 @@ export function setupInteractions({
     for (const cart of cartridges) {
       if (cart.userData.dragging) continue;
       if (cart.userData.snapped) continue;
+      if (cart.userData.autoInserting) continue;
       if (!cart.userData.physicsActive) continue;
 
       if (!cart.userData.velocity) cart.userData.velocity = new THREE.Vector3();
@@ -439,6 +465,7 @@ export function setupInteractions({
   function snapStep() {
     for (const cart of cartridges) {
       if (cart.userData.dragging) continue;
+      if (cart.userData.autoInserting) continue;
       if (!cart.userData.snapped) continue;
 
       cart.getWorldPosition(_phWorld);
@@ -497,8 +524,7 @@ export function setupInteractions({
     pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
 
-    // Raycast against the entire Game Boy and walk the hit list to
-    // find the first one with a userData.button tag.
+    // 1) Buttons on the Game Boy
     const hits = raycaster.intersectObject(gameBoy, true);
     for (const hit of hits) {
       let node = hit.object;
@@ -506,13 +532,81 @@ export function setupInteractions({
       if (node && node.userData.button) {
         const kind = node.userData.button;
         pressButton(node);
+        playButtonClick();
         if (kind === 'start') {
           if (!isBooted) powerOn(); else powerOff();
         }
         return;
       }
     }
+
+    // 2) Cartridges — tap-to-insert (works on both PC click and
+    //    mobile tap). A snapped cart taps to eject.
+    const cartHits = raycaster.intersectObjects(cartridges, true);
+    if (cartHits.length > 0) {
+      let cart = cartHits[0].object;
+      while (cart && !cartridges.includes(cart)) cart = cart.parent;
+      if (cart) {
+        if (cart.userData.snapped) {
+          ejectCart(cart);
+        } else {
+          autoInsertCart(cart);
+        }
+      }
+    }
   });
+
+  // ---------------- Auto-insert animation (tap-to-fly-in) ----------------
+  // Animates a cart from its current position to the slot via an arc,
+  // marks it snapped, and (if the console is off) auto-powers it on.
+  const _autoStart = new THREE.Vector3();
+  const _autoNew   = new THREE.Vector3();
+  function autoInsertCart(cart) {
+    if (cart.userData.snapped || cart.userData.autoInserting) return;
+    refreshSlotWorld();
+    cart.getWorldPosition(_autoStart);
+
+    cart.userData.autoInserting = true;
+    cart.userData.dragging = false;
+    cart.userData.physicsActive = false;
+    cart.userData.snapped = false;
+
+    const duration = 700;
+    const t0 = performance.now();
+    function step() {
+      const tt = (performance.now() - t0) / duration;
+      const t  = Math.min(tt, 1);
+      const ease = 1 - Math.pow(1 - t, 3);  // ease-out cubic
+      _autoNew.lerpVectors(_autoStart, slotWorld, ease);
+      _autoNew.y += Math.sin(t * Math.PI) * 0.45;  // arc up over the desk
+
+      _targetLocal.copy(_autoNew);
+      if (cart.parent) cart.parent.worldToLocal(_targetLocal);
+      cart.position.copy(_targetLocal);
+
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        cart.userData.autoInserting = false;
+        cart.userData.snapped = true;
+        showCartContent(cart);
+        if (!isBooted) {
+          setTimeout(() => powerOn(), 250);
+        }
+      }
+    }
+    step();
+  }
+
+  function ejectCart(cart) {
+    cart.userData.snapped = false;
+    cart.userData.autoInserting = false;
+    hideCartContent();
+    if (!cart.userData.velocity) cart.userData.velocity = new THREE.Vector3();
+    cart.userData.velocity.set(0, 0, 0);
+    cart.userData.physicsActive = true;
+    cart.rotation.set(0, 0, 0);
+  }
 
   return { powerOn, powerOff, update };
 }
