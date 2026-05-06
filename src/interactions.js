@@ -36,65 +36,40 @@ export function setupInteractions({
   refreshGbBox();
   refreshSlotWorld();
 
-  const SNAP_RADIUS = 0.55;       // magnetic pull radius (forgiving)
-  const UNSNAP_RADIUS = 0.85;     // must drag past this to break the snap
-  const SNAP_LERP    = 0.30;      // magnetic strength (per drag event)
+  // Snap is now release-based: when the user drops a cart within
+  // SNAP_RADIUS of the slot, it smoothly slides into place via
+  // per-frame lerp in update(). Tighter radius = less aggressive.
+  const SNAP_RADIUS = 0.25;
+  const SNAP_LERP   = 0.18;       // per-frame slide-in speed
 
   const drag = new DragControls(cartridges, camera, canvas);
   drag.transformGroup = true;
-
-  drag.addEventListener('dragstart', (e) => {
-    orbit.enabled = false;
-    e.object.userData.dragging = true;
-    // small visual cue: tip the cartridge slightly while held
-    e.object.rotation.x = THREE.MathUtils.degToRad(-4);
-    e.object.rotation.z = THREE.MathUtils.degToRad(2);
-    refreshSlotWorld();
-    refreshGbBox();
-  });
 
   // reusable buffers
   const _cartWorld = new THREE.Vector3();
   const _targetLocal = new THREE.Vector3();
 
+  drag.addEventListener('dragstart', (e) => {
+    orbit.enabled = false;
+    e.object.userData.dragging = true;
+    // Picking up a snapped cart releases it so the user can drag it
+    // away. Otherwise the snapped cart would stay locked under the
+    // mouse and block other interactions.
+    e.object.userData.snapped = false;
+    e.object.userData.physicsActive = false;
+    e.object.rotation.set(
+      THREE.MathUtils.degToRad(-4), 0, THREE.MathUtils.degToRad(2),
+    );
+    refreshSlotWorld();
+    refreshGbBox();
+  });
+
   drag.addEventListener('drag', (e) => {
-    // any active drag cancels physics
+    // No snap-while-dragging — let the user move the cart freely.
+    // Just keep it from passing through the console body.
     if (e.object.userData.velocity) e.object.userData.velocity.set(0, 0, 0);
 
-    const wasSnapped = e.object.userData.snapped === true;
-
-    // Crucial: e.object.position is in parent-local space, slotWorld
-    // is world space — must compare in world space.
     e.object.getWorldPosition(_cartWorld);
-    const dist = _cartWorld.distanceTo(slotWorld);
-
-    const threshold = wasSnapped ? UNSNAP_RADIUS : SNAP_RADIUS;
-
-    if (dist < threshold) {
-      // Magnetic lerp toward the slot in world space
-      const newWorld = _cartWorld.clone().lerp(slotWorld, SNAP_LERP);
-      _targetLocal.copy(newWorld);
-      if (e.object.parent) e.object.parent.worldToLocal(_targetLocal);
-      e.object.position.copy(_targetLocal);
-
-      // Stand the cart vertically: -90° around X. This makes the
-      // cart's local +Z (long axis) point world +Y (up), and its
-      // -Y face (we drew a label there too) face the camera.
-      e.object.rotation.set(-Math.PI / 2, 0, 0);
-
-      e.object.userData.snapped = true;
-      return;
-    }
-
-    e.object.userData.snapped = false;
-    e.object.rotation.set(
-      THREE.MathUtils.degToRad(-4),
-      0,
-      THREE.MathUtils.degToRad(2),
-    );
-
-    // Anti-pass-through: clamp Y so the cart doesn't sink into the
-    // console body (world space).
     if (
       _cartWorld.x >= gbBox.min.x && _cartWorld.x <= gbBox.max.x &&
       _cartWorld.z >= gbBox.min.z && _cartWorld.z <= gbBox.max.z
@@ -109,9 +84,19 @@ export function setupInteractions({
   drag.addEventListener('dragend', (e) => {
     orbit.enabled = true;
     e.object.userData.dragging = false;
-    if (!e.object.userData.snapped) {
+
+    // On release: if the cart is close enough to the slot, mark it
+    // as snapped and let update() smoothly slide it in. Otherwise
+    // enable gravity and let it fall.
+    e.object.getWorldPosition(_cartWorld);
+    const dist = _cartWorld.distanceTo(slotWorld);
+
+    if (dist < SNAP_RADIUS) {
+      e.object.userData.snapped = true;
+      e.object.userData.physicsActive = false;
+    } else {
+      e.object.userData.snapped = false;
       e.object.rotation.set(0, 0, 0);
-      // initialize velocity & enable gravity
       if (!e.object.userData.velocity) {
         e.object.userData.velocity = new THREE.Vector3();
       }
@@ -357,8 +342,30 @@ export function setupInteractions({
     }
   }
 
+  // ---------------- per-frame snap-in (smooth slide) ----------------
+  // For carts marked as snapped, lerp position+rotation toward the
+  // slot pose every frame. Looks like the cart slides smoothly in
+  // rather than jumping.
+  function snapStep() {
+    for (const cart of cartridges) {
+      if (cart.userData.dragging) continue;
+      if (!cart.userData.snapped) continue;
+
+      // position lerp in world space
+      cart.getWorldPosition(_phWorld);
+      _phWorld.lerp(slotWorld, SNAP_LERP);
+      _targetLocal.copy(_phWorld);
+      if (cart.parent) cart.parent.worldToLocal(_targetLocal);
+      cart.position.copy(_targetLocal);
+
+      // rotation lerp toward upright
+      cart.rotation.x = THREE.MathUtils.lerp(cart.rotation.x, -Math.PI / 2, SNAP_LERP);
+      cart.rotation.y = THREE.MathUtils.lerp(cart.rotation.y, 0, SNAP_LERP);
+      cart.rotation.z = THREE.MathUtils.lerp(cart.rotation.z, 0, SNAP_LERP);
+    }
+  }
+
   // Frame update — main.js calls this every tick with (now, dt)
-  let _lastBootRedraw = 0;
   function update(now, dt = 0) {
     if (isBooted && bootStart != null) {
       const elapsed = (now - bootStart) / 1000;
@@ -366,6 +373,7 @@ export function setupInteractions({
         drawBootFrame(elapsed);
       }
     }
+    snapStep();
     if (dt > 0) physicsStep(dt);
   }
 
