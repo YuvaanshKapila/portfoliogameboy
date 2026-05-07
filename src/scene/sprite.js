@@ -45,11 +45,11 @@ export function buildSprite() {
     polygonOffsetUnits: -3,
   });
 
-  // Plane size on the desk: roughly the footprint of a small figurine
-  // viewed from above. Wider in Z than X so the character has a clear
+  // Plane size on the desk: roughly a paperback's footprint viewed
+  // from above. Wider in Z than X so the character has a clear
   // "head" (toward -Z) and "feet" (toward +Z) when laid flat.
-  const planeW = 0.30;
-  const planeL = 0.36;
+  const planeW = 0.42;
+  const planeL = 0.50;
   const sprite = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeL), mat);
 
   // Lay flat on the desk surface — texture's +Y becomes world -Z, so

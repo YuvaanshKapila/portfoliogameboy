@@ -166,10 +166,11 @@ let cartGroupRef = null;
   // Trading cards scattered around the desk for set-dressing
   scene.add(buildTradingCards());
 
-  // Auto-walking pixel-art character on the desk — laid flat so it's
-  // visible from the top-down camera, picks its own path.
+  // Auto-walking pixel-art character on the desk. Placed in the
+  // strip BETWEEN the console's front edge and the desk's front
+  // edge so the Game Boy doesn't occlude it from above.
   spriteRef = buildSprite();
-  spriteRef.position.set(-0.20, 0.012, 0.55);
+  spriteRef.position.set(-0.20, 0.012, 1.25);
   scene.add(spriteRef);
 
   interactions = setupInteractions({
@@ -244,10 +245,11 @@ function tick(now) {
       _basketAABB.setFromObject(cartGroupRef);
       obstacles.push({ min: _basketAABB.min, max: _basketAABB.max });
     }
-    // Keep the wanderer in front-of-console area where the camera
-    // is actually looking — not allowed to wander off behind the
-    // device or way out into empty desk.
-    const bounds = { minX: -1.6, maxX: 1.4, minZ: 0.30, maxZ: 1.40 };
+    // Keep the wanderer in the strip between the console's front
+    // edge (~z=1.0) and the desk edge — that's the only area where
+    // the Game Boy + basket aren't rendering on top of the flat
+    // sprite plane.
+    const bounds = { minX: -1.6, maxX: 1.5, minZ: 1.05, maxZ: 1.85 };
     updateSprite(spriteRef, dt, obstacles, bounds);
   }
 
