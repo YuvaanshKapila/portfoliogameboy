@@ -72,9 +72,9 @@ const IS_MOBILE =
   );
 
 // Initial camera: straight on, centered on the scene midpoint.
-// Pulled back further on mobile so phone users see the whole scene
-// without needing to pinch-zoom on first load.
-const camDist  = IS_MOBILE ? 10.0 : 5.8;
+// Mobile: further back so the whole scene fits on a phone.
+// Desktop: closer in so the LCD text reads cleanly without zooming.
+const camDist  = IS_MOBILE ? 10.0 : 4.6;
 const camPolar = THREE.MathUtils.degToRad(13);
 const camAzim  = THREE.MathUtils.degToRad(0);
 const camTarget = new THREE.Vector3(-0.30, 0.15, 0);

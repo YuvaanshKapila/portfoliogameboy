@@ -221,7 +221,7 @@ const CART_CONTENT = {
   ],
 };
 
-export const CART_VISIBLE_LINES = 9;
+export const CART_VISIBLE_LINES = 7;
 export function getCartContent(title) { return CART_CONTENT[title] || null; }
 
 export function makeCartridgeScreenMaterial(title, scrollOffset = 0, selection = 0) {
@@ -236,15 +236,15 @@ export function makeCartridgeScreenMaterial(title, scrollOffset = 0, selection =
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // Title with subtle drop shadow + underline
+  // Title with subtle drop shadow + underline — bigger + dark for legibility
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `400 96px ${F_DISPLAY}`;
+  ctx.font = `400 120px ${F_DISPLAY}`;
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.fillText(title, 514, 110);
-  ctx.fillStyle = '#1d1d1d';
-  ctx.fillText(title, 512, 106);
-  ctx.fillRect(140, 178, 744, 4);
+  ctx.fillText(title, 514, 130);
+  ctx.fillStyle = '#000000';
+  ctx.fillText(title, 512, 126);
+  ctx.fillRect(120, 210, 784, 5);
 
   // Body — special-cased per cart
   if (title === 'CONTACT') {
@@ -284,62 +284,62 @@ export function makeCartridgeScreenMaterial(title, scrollOffset = 0, selection =
 
 function drawListBody(ctx, items, scrollOffset = 0) {
   const VISIBLE = CART_VISIBLE_LINES;
-  const lineH = 70;
-  const fontPx = 50;
+  const lineH = 92;
+  const fontPx = 68;
 
   // Clamp the offset
   const maxOff = Math.max(0, items.length - VISIBLE);
   const off = Math.max(0, Math.min(scrollOffset, maxOff));
   const visible = items.slice(off, off + VISIBLE);
 
-  ctx.font = `600 ${fontPx}px ${F_LABEL}`;
-  ctx.fillStyle = '#222222';
+  ctx.font = `700 ${fontPx}px ${F_LABEL}`;
+  ctx.fillStyle = '#000000';
   ctx.textAlign = 'left';
-  let y = 240;
+  let y = 270;
   for (const line of visible) {
     ctx.fillText(line, 100, y);
     y += lineH;
   }
 
   // Scroll arrows on the right when there's more above/below
-  ctx.fillStyle = '#333';
-  ctx.font = `bold 56px sans-serif`;
+  ctx.fillStyle = '#000';
+  ctx.font = `bold 70px sans-serif`;
   ctx.textAlign = 'center';
-  if (off > 0)                       ctx.fillText('▲', 950, 240);
-  if (off + VISIBLE < items.length)  ctx.fillText('▼', 950, 880);
+  if (off > 0)                       ctx.fillText('▲', 940, 240);
+  if (off + VISIBLE < items.length)  ctx.fillText('▼', 940, 920);
 }
 
 function drawContactBody(ctx, selection = 0) {
   // ===== GitHub block (top, index 0) =====
-  if (selection === 0) drawSelectionHighlight(ctx, 70, 250, 884, 230);
-  drawGithubIcon(ctx, 130, 280, 160);
-  ctx.fillStyle = '#1d1d1d';
-  ctx.font = `700 56px ${F_LABEL}`;
+  if (selection === 0) drawSelectionHighlight(ctx, 60, 270, 904, 240);
+  drawGithubIcon(ctx, 130, 300, 170);
+  ctx.fillStyle = '#000';
+  ctx.font = `800 72px ${F_LABEL}`;
   ctx.textAlign = 'left';
-  ctx.fillText('GITHUB', 320, 320);
-  ctx.font = `600 38px ${F_LABEL}`;
-  ctx.fillStyle = '#444444';
-  ctx.fillText('YUVAANSHKAPILA', 320, 380);
+  ctx.fillText('GITHUB', 340, 350);
+  ctx.font = `700 44px ${F_LABEL}`;
+  ctx.fillStyle = '#222';
+  ctx.fillText('YUVAANSHKAPILA', 340, 420);
 
   // divider
-  ctx.fillStyle = '#1d1d1d';
-  ctx.fillRect(140, 540, 744, 3);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(120, 555, 784, 4);
 
   // ===== LinkedIn block (bottom, index 1) =====
-  if (selection === 1) drawSelectionHighlight(ctx, 70, 565, 884, 230);
-  drawLinkedInIcon(ctx, 130, 595, 160);
-  ctx.fillStyle = '#1d1d1d';
-  ctx.font = `700 56px ${F_LABEL}`;
-  ctx.fillText('LINKEDIN', 320, 635);
-  ctx.font = `600 38px ${F_LABEL}`;
-  ctx.fillStyle = '#444444';
-  ctx.fillText('/IN/YUVAANSH-KAPILA', 320, 695);
+  if (selection === 1) drawSelectionHighlight(ctx, 60, 580, 904, 240);
+  drawLinkedInIcon(ctx, 130, 610, 170);
+  ctx.fillStyle = '#000';
+  ctx.font = `800 72px ${F_LABEL}`;
+  ctx.fillText('LINKEDIN', 340, 660);
+  ctx.font = `700 44px ${F_LABEL}`;
+  ctx.fillStyle = '#222';
+  ctx.fillText('/IN/YUVAANSH-KAPILA', 340, 730);
 
   // hint
-  ctx.font = `600 32px ${F_LABEL}`;
-  ctx.fillStyle = '#777';
+  ctx.font = `700 38px ${F_LABEL}`;
+  ctx.fillStyle = '#444';
   ctx.textAlign = 'center';
-  ctx.fillText('D-PAD: SELECT   A: OPEN', 512, 920);
+  ctx.fillText('D-PAD: SELECT   A: OPEN', 512, 940);
 }
 
 function drawSelectionHighlight(ctx, x, y, w, h) {
