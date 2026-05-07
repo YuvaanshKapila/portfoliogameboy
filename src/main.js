@@ -187,9 +187,10 @@ window.addEventListener('keyup', (e) => {
   // Trading cards scattered around the desk for set-dressing
   scene.add(buildTradingCards());
 
-  // Walking pixel-art character on the desk
+  // Walking pixel-art character on the desk — placed front-center so
+  // it's the first thing visible at the default camera angle.
   spriteRef = buildSprite();
-  spriteRef.position.set(-0.10, spriteRef.userData.halfH + 0.005, 1.10);
+  spriteRef.position.set(-0.20, spriteRef.userData.halfH + 0.005, 0.55);
   scene.add(spriteRef);
 
   interactions = setupInteractions({

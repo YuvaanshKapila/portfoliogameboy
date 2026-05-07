@@ -44,10 +44,10 @@ export function buildSprite() {
     polygonOffsetUnits: -2,
   });
 
-  // Visible plane size — about 20cm tall in scene units. Reads as a
-  // tiny figurine on the desk next to the Game Boy.
-  const planeW = 0.20;
-  const planeH = 0.24;
+  // Bigger so the character actually reads from the default camera
+  // distance — roughly knee-high to the Game Boy.
+  const planeW = 0.34;
+  const planeH = 0.42;
   const sprite = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
   sprite.position.set(0, planeH / 2 + 0.005, 0.85);
   sprite.castShadow = false;
@@ -57,6 +57,8 @@ export function buildSprite() {
     direction: 0,
     walkFrame: 1,        // 0 / 1 / 2  ; 1 = standing
     walkClock: 0,
+    idleClock: 0,        // for the standing bob
+    baseY: 0,            // captured the first time updateSprite runs
     speed: 0.9,          // scene units / sec
     halfH: planeH / 2,
     halfW: planeW / 2,
@@ -78,6 +80,7 @@ export function buildSprite() {
  */
 export function updateSprite(sprite, dt, input, camera, obstacles, bounds) {
   const ud = sprite.userData;
+  if (ud.baseY === 0) ud.baseY = sprite.position.y;
   const mx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
   const mz = (input.down  ? 1 : 0) - (input.up   ? 1 : 0);
   const moving = (mx !== 0 || mz !== 0);
@@ -112,6 +115,12 @@ export function updateSprite(sprite, dt, input, camera, obstacles, bounds) {
     ud.walkFrame = 1;            // standing pose
     ud.walkClock = 0;
   }
+
+  // Idle bob — gentle vertical wobble even when not walking, so the
+  // character is easier to spot at first glance.
+  ud.idleClock += dt;
+  const bob = Math.sin(ud.idleClock * 3.2) * 0.012;
+  sprite.position.y = ud.baseY + bob;
 
   // Update which sheet cell we're showing
   ud.tex.offset.x = ud.walkFrame / SHEET_COLS;
