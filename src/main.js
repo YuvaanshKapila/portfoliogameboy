@@ -73,7 +73,7 @@ const IS_MOBILE =
 
 // Initial camera: straight on, centered on the scene midpoint.
 // Mobile: only slightly further than desktop so the LCD reads.
-const camDist  = IS_MOBILE ? 6.0 : 4.6;
+const camDist  = IS_MOBILE ? 8.0 : 4.6;
 const camPolar = THREE.MathUtils.degToRad(13);
 const camAzim  = THREE.MathUtils.degToRad(0);
 const camTarget = new THREE.Vector3(-0.30, 0.15, 0);
