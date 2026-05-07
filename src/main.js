@@ -6,6 +6,7 @@ import { buildLighting } from './scene/lighting.js';
 import { buildTable } from './scene/table.js';
 import { buildGameBoy } from './scene/gameBoy.js';
 import { buildCartridgeBasket } from './scene/cartridges.js';
+import { buildTradingCards } from './scene/tradingCards.js';
 import { setupInteractions } from './interactions.js';
 
 /* ------------------------------------------------------------------
@@ -157,6 +158,9 @@ let slotAnchorRef = null;
   cartGroup.position.set(-0.85, 0, 0);  // closer to the Game Boy
   scene.add(cartGroup);
   cartridgesRef = cartridges;
+
+  // Trading cards scattered around the desk for set-dressing
+  scene.add(buildTradingCards());
 
   interactions = setupInteractions({
     scene, camera, renderer, orbit,
