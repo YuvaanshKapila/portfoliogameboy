@@ -34,3 +34,10 @@ yarn-error.log*
 # Vite
 .vite/
 *.local
+
+# Sprite-sheet source files + sliced output — kept local only so
+# unlicensed or in-progress art doesn't get pushed to a public repo.
+# Re-run `npm run slice` locally after you drop a sheet into public/.
+public/sprites/
+public/*.jpeg
+!public/favicon.jpeg

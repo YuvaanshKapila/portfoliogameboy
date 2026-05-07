@@ -8,12 +8,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "slice": "node tools/slice-sprites.js"
   },
   "dependencies": {
     "three": "^0.160.0"
   },
   "devDependencies": {
+    "jimp": "^0.22.12",
     "vite": "^5.4.10"
   }
 }
