@@ -129,27 +129,6 @@ let slotAnchorRef = null;
 let spriteRef   = null;
 let cartGroupRef = null;
 
-// WASD input state shared with the sprite update loop
-const spriteInput = { up: false, down: false, left: false, right: false };
-window.addEventListener('keydown', (e) => {
-  switch (e.key) {
-    case 'w': case 'W': spriteInput.up = true; break;
-    case 's': case 'S': spriteInput.down = true; break;
-    case 'a': case 'A': // already used by interactions for "open URL"
-      // only treat as movement if not focused on something else
-      spriteInput.left = true; break;
-    case 'd': case 'D': spriteInput.right = true; break;
-  }
-});
-window.addEventListener('keyup', (e) => {
-  switch (e.key) {
-    case 'w': case 'W': spriteInput.up = false; break;
-    case 's': case 'S': spriteInput.down = false; break;
-    case 'a': case 'A': spriteInput.left = false; break;
-    case 'd': case 'D': spriteInput.right = false; break;
-  }
-});
-
 (async () => {
   if (document.fonts && document.fonts.load) {
     try {
@@ -187,10 +166,10 @@ window.addEventListener('keyup', (e) => {
   // Trading cards scattered around the desk for set-dressing
   scene.add(buildTradingCards());
 
-  // Walking pixel-art character on the desk — placed front-center so
-  // it's the first thing visible at the default camera angle.
+  // Auto-walking pixel-art character on the desk — laid flat so it's
+  // visible from the top-down camera, picks its own path.
   spriteRef = buildSprite();
-  spriteRef.position.set(-0.20, spriteRef.userData.halfH + 0.005, 0.55);
+  spriteRef.position.set(-0.20, 0.012, 0.55);
   scene.add(spriteRef);
 
   interactions = setupInteractions({
@@ -255,8 +234,7 @@ function tick(now) {
   orbit.update();
   updateInsertSign();
 
-  // Walking sprite — updated AFTER orbit so the billboard faces the
-  // current camera position.
+  // Auto-walking sprite — picks its own targets and wanders the desk
   if (spriteRef && gameBoyRef) {
     _gbAABB.setFromObject(gameBoyRef);
     const obstacles = [
@@ -266,8 +244,11 @@ function tick(now) {
       _basketAABB.setFromObject(cartGroupRef);
       obstacles.push({ min: _basketAABB.min, max: _basketAABB.max });
     }
-    const bounds = { minX: -3.0, maxX: 3.0, minZ: -1.6, maxZ: 1.8 };
-    updateSprite(spriteRef, dt, spriteInput, camera, obstacles, bounds);
+    // Keep the wanderer in front-of-console area where the camera
+    // is actually looking — not allowed to wander off behind the
+    // device or way out into empty desk.
+    const bounds = { minX: -1.6, maxX: 1.4, minZ: 0.30, maxZ: 1.40 };
+    updateSprite(spriteRef, dt, obstacles, bounds);
   }
 
   renderer.render(scene, camera);

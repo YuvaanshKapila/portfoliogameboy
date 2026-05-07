@@ -1,37 +1,38 @@
 import * as THREE from 'three';
 
 /**
- * A tiny walking pixel-art character that lives on the desk.
+ * A small auto-walking pixel-art figure that lives on the desk.
  *
- * - Drawn into a 3-col × 4-row sprite sheet (left-step / stand /
- *   right-step  ×  down / left / right / up), all canvas primitives,
- *   no copyrighted artwork.
- * - Rendered as a small billboarded plane that always faces the camera.
- * - Driven by WASD via updateSprite(); collides with axis-aligned
- *   bounding boxes passed in (Game Boy + cart basket so the character
- *   can't walk through them).
+ * Top-down view: the plane is laid FLAT on the desk surface so the
+ * camera (which looks nearly straight down) sees the full sprite
+ * instead of a thin edge. The art is drawn as a 3/4 top-down
+ * perspective — head from above, shoulders, arms at sides, legs
+ * peeking out below.
  *
- * Why WASD instead of arrow keys: the arrow keys are already wired to
- * scroll the inserted cartridge's content, so WASD keeps the two
- * input modes from stomping on each other.
+ * Walks around on its own — picks a random target inside the desk
+ * bounds, walks toward it, pauses briefly, picks another. Avoids
+ * the Game Boy and the cart basket via simple AABB collision.
+ *
+ * All sprite art is original — drawn with canvas rectangle
+ * primitives, no reference artwork copied.
  */
 
-const SHEET_COLS = 3;   // walk-step-A, stand, walk-step-B
-const SHEET_ROWS = 4;   // 0=down, 1=left, 2=right, 3=up
-const SPRITE_PX  = 32;  // logical pixels per frame
-const SCALE      = 4;   // upscale so the canvas texture has bite
+const SHEET_COLS = 3;             // step-A / stand / step-B
+const SPRITE_PX  = 32;            // logical pixels per frame
+const SCALE      = 4;             // canvas upscale
+const SHEET_W    = SPRITE_PX * SCALE * SHEET_COLS;
+const SHEET_H    = SPRITE_PX * SCALE;
 
 export function buildSprite() {
   const sheet = makeSpriteSheet();
 
   const tex = new THREE.CanvasTexture(sheet);
   tex.colorSpace   = THREE.SRGBColorSpace;
-  tex.magFilter    = THREE.NearestFilter;   // crisp pixels
+  tex.magFilter    = THREE.NearestFilter;
   tex.minFilter    = THREE.NearestFilter;
   tex.generateMipmaps = false;
-  // Show one frame of the sheet at a time via UV repeat + offset
-  tex.repeat.set(1 / SHEET_COLS, 1 / SHEET_ROWS);
-  tex.offset.set(0, (SHEET_ROWS - 1) / SHEET_ROWS); // start: down, standing
+  tex.repeat.set(1 / SHEET_COLS, 1);
+  tex.offset.set(1 / SHEET_COLS, 0);   // start on the "stand" frame
 
   const mat = new THREE.MeshBasicMaterial({
     map: tex,
@@ -40,105 +41,118 @@ export function buildSprite() {
     side: THREE.DoubleSide,
     depthWrite: false,
     polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3,
   });
 
-  // Bigger so the character actually reads from the default camera
-  // distance — roughly knee-high to the Game Boy.
-  const planeW = 0.34;
-  const planeH = 0.42;
-  const sprite = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
-  sprite.position.set(0, planeH / 2 + 0.005, 0.85);
+  // Plane size on the desk: roughly the footprint of a small figurine
+  // viewed from above. Wider in Z than X so the character has a clear
+  // "head" (toward -Z) and "feet" (toward +Z) when laid flat.
+  const planeW = 0.30;
+  const planeL = 0.36;
+  const sprite = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeL), mat);
+
+  // Lay flat on the desk surface — texture's +Y becomes world -Z, so
+  // the character's "up" (head) on the sprite sheet points toward the
+  // back of the desk.
+  sprite.rotation.x = -Math.PI / 2;
+  sprite.position.set(0, 0.012, 0.40);
+  sprite.renderOrder = 5;
   sprite.castShadow = false;
   sprite.receiveShadow = false;
 
   sprite.userData = {
-    direction: 0,
-    walkFrame: 1,        // 0 / 1 / 2  ; 1 = standing
+    walkFrame: 1,
     walkClock: 0,
-    idleClock: 0,        // for the standing bob
-    baseY: 0,            // captured the first time updateSprite runs
-    speed: 0.9,          // scene units / sec
-    halfH: planeH / 2,
-    halfW: planeW / 2,
+    speed: 0.55,
+    target: null,
+    pauseUntil: 0,
     tex,
   };
 
   return sprite;
 }
 
-/**
- * Per-frame movement + animation step.
- *
- * @param sprite      mesh from buildSprite()
- * @param dt          seconds since last frame
- * @param input       { up, down, left, right }   booleans
- * @param camera      THREE.Camera (for billboarding)
- * @param obstacles   array of { min: Vector3, max: Vector3 } AABBs in WORLD space
- * @param bounds      { minX, maxX, minZ, maxZ }   desk extents in world space
- */
-export function updateSprite(sprite, dt, input, camera, obstacles, bounds) {
+/* ------------------------------------------------------------------
+   Per-frame auto-walk: picks random targets, walks to them, pauses,
+   repeats. Collides with obstacles and clamps to desk bounds.
+
+   @param obstacles   array of { min: Vector3, max: Vector3 } AABBs
+   @param bounds      { minX, maxX, minZ, maxZ }
+   ------------------------------------------------------------------ */
+export function updateSprite(sprite, dt, obstacles, bounds) {
   const ud = sprite.userData;
-  if (ud.baseY === 0) ud.baseY = sprite.position.y;
-  const mx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-  const mz = (input.down  ? 1 : 0) - (input.up   ? 1 : 0);
-  const moving = (mx !== 0 || mz !== 0);
+  const now = performance.now();
 
-  if (moving) {
-    // Direction priority — bigger axis wins (so diagonal still picks one row)
-    if (Math.abs(mz) >= Math.abs(mx)) ud.direction = mz > 0 ? 0 : 3;
-    else                              ud.direction = mx > 0 ? 2 : 1;
+  // Lazy-pick first target
+  if (!ud.target) pickRandomTarget(ud, bounds, sprite.position);
 
-    const len   = Math.hypot(mx, mz);
-    const dx    = (mx / len) * ud.speed * dt;
-    const dz    = (mz / len) * ud.speed * dt;
-    const tryX  = sprite.position.x + dx;
-    const tryZ  = sprite.position.z + dz;
-
-    // Try X then Z separately so sliding along an obstacle still works
-    if (!collides(tryX, sprite.position.z, ud, obstacles)) {
-      sprite.position.x = clamp(tryX, bounds.minX, bounds.maxX);
-    }
-    if (!collides(sprite.position.x, tryZ, ud, obstacles)) {
-      sprite.position.z = clamp(tryZ, bounds.minZ, bounds.maxZ);
-    }
-
-    // Walk-cycle frame timer
-    ud.walkClock += dt;
-    if (ud.walkClock > 0.16) {
-      ud.walkClock = 0;
-      ud.walkFrame = (ud.walkFrame + 1) % 3;
-      if (ud.walkFrame === 1) ud.walkFrame = 2;  // skip the stand pose
-    }
-  } else {
-    ud.walkFrame = 1;            // standing pose
+  // Pause between movements
+  if (ud.pauseUntil > now) {
+    ud.walkFrame = 1;
     ud.walkClock = 0;
+    ud.tex.offset.x = 1 / SHEET_COLS;
+    return;
   }
 
-  // Idle bob — gentle vertical wobble even when not walking, so the
-  // character is easier to spot at first glance.
-  ud.idleClock += dt;
-  const bob = Math.sin(ud.idleClock * 3.2) * 0.012;
-  sprite.position.y = ud.baseY + bob;
+  const dx = ud.target.x - sprite.position.x;
+  const dz = ud.target.z - sprite.position.z;
+  const dist = Math.hypot(dx, dz);
 
-  // Update which sheet cell we're showing
+  // Reached the target — pause, then pick a new one
+  if (dist < 0.08) {
+    ud.pauseUntil = now + 600 + Math.random() * 1400;
+    pickRandomTarget(ud, bounds, sprite.position);
+    return;
+  }
+
+  const stepX = (dx / dist) * ud.speed * dt;
+  const stepZ = (dz / dist) * ud.speed * dt;
+  const tryX = sprite.position.x + stepX;
+  const tryZ = sprite.position.z + stepZ;
+
+  // Try X and Z separately so the character slides along obstacle edges
+  const blockedX = collides(tryX, sprite.position.z, obstacles);
+  const blockedZ = collides(sprite.position.x, tryZ, obstacles);
+
+  if (!blockedX) sprite.position.x = clamp(tryX, bounds.minX, bounds.maxX);
+  if (!blockedZ) sprite.position.z = clamp(tryZ, bounds.minZ, bounds.maxZ);
+
+  // Wholly stuck? new target
+  if (blockedX && blockedZ) {
+    pickRandomTarget(ud, bounds, sprite.position);
+    return;
+  }
+
+  // Animate walk cycle: step-A (0) ↔ step-B (2), skip standing
+  ud.walkClock += dt;
+  if (ud.walkClock > 0.16) {
+    ud.walkClock = 0;
+    ud.walkFrame = ud.walkFrame === 0 ? 2 : 0;
+  }
   ud.tex.offset.x = ud.walkFrame / SHEET_COLS;
-  ud.tex.offset.y = (SHEET_ROWS - 1 - ud.direction) / SHEET_ROWS;
-
-  // Billboard — face the camera but stay vertical
-  const cx = camera.position.x - sprite.position.x;
-  const cz = camera.position.z - sprite.position.z;
-  sprite.rotation.y = Math.atan2(cx, cz);
 }
 
-function collides(x, z, ud, obstacles) {
-  const r = 0.06; // small AABB around the sprite's footprint
+function pickRandomTarget(ud, bounds, current) {
+  for (let i = 0; i < 8; i++) {
+    const x = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
+    const z = bounds.minZ + Math.random() * (bounds.maxZ - bounds.minZ);
+    // Reject targets that would teleport too short or too far
+    const d = Math.hypot(x - current.x, z - current.z);
+    if (d > 0.4 && d < 2.5) { ud.target = { x, z }; return; }
+  }
+  // Fallback — a random point regardless of distance
+  ud.target = {
+    x: bounds.minX + Math.random() * (bounds.maxX - bounds.minX),
+    z: bounds.minZ + Math.random() * (bounds.maxZ - bounds.minZ),
+  };
+}
+
+function collides(x, z, obstacles) {
+  const r = 0.08;
   for (const ob of obstacles) {
     if (x + r > ob.min.x && x - r < ob.max.x &&
-        z + r > ob.min.z && z - r < ob.max.z) {
-      return true;
-    }
+        z + r > ob.min.z && z - r < ob.max.z) return true;
   }
   return false;
 }
@@ -146,131 +160,93 @@ function collides(x, z, ud, obstacles) {
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
 /* ------------------------------------------------------------------
-   Original pixel-art sprite sheet — drawn purely with canvas
-   rectangle primitives. No reference artwork copied; the character
-   is a generic explorer figure (cap + shirt + pants + boots) drawn
-   from the four cardinal directions with a 2-frame walk cycle.
+   Original top-down 3/4 sprite — drawn purely with canvas
+   rectangle primitives. Generic explorer figure. Three frames:
+   step-A, stand, step-B. Same view in all frames; only the legs
+   and arms shift to suggest a walk cycle.
    ------------------------------------------------------------------ */
 function makeSpriteSheet() {
-  const FW = SPRITE_PX * SCALE;
-  const FH = SPRITE_PX * SCALE;
-  const W  = FW * SHEET_COLS;
-  const H  = FH * SHEET_ROWS;
-
   const c = document.createElement('canvas');
-  c.width = W; c.height = H;
+  c.width = SHEET_W; c.height = SHEET_H;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   ctx.scale(SCALE, SCALE);
 
-  for (let row = 0; row < SHEET_ROWS; row++) {
-    for (let col = 0; col < SHEET_COLS; col++) {
-      ctx.save();
-      ctx.translate(col * SPRITE_PX, row * SPRITE_PX);
-      drawFrame(ctx, row, col);
-      ctx.restore();
-    }
+  for (let col = 0; col < SHEET_COLS; col++) {
+    ctx.save();
+    ctx.translate(col * SPRITE_PX, 0);
+    drawTopDownFrame(ctx, col);
+    ctx.restore();
   }
   return c;
 }
 
-const PALETTE = {
-  outline: '#1a1410',
-  hair:    '#2a1810',
-  cap:     '#c41e3a',
-  capBrim: '#7a0d20',
-  skin:    '#f0c490',
-  shirt:   '#3858d8',
-  shirt2:  '#1f3aac',
-  pants:   '#3a2818',
-  boot:    '#1a1410',
-  pack:    '#5e3820',
-};
-
-function drawFrame(ctx, dir, frame) {
-  // dir: 0 down, 1 left, 2 right, 3 up
-  // frame: 0 step-A, 1 stand, 2 step-B
+function drawTopDownFrame(ctx, frame) {
   const r = (x, y, w, h, color) => { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); };
-  const p = (x, y, color)        => { ctx.fillStyle = color; ctx.fillRect(x, y, 1, 1); };
 
-  // Walk leg offsets — 0/+1 vs +1/0 toggles between frames
-  const lyA = frame === 0 ? 0 : 1;   // left leg drop
-  const lyB = frame === 2 ? 0 : 1;   // right leg drop
+  const COL = {
+    outline: '#1a1410',
+    cap:     '#c41e3a',
+    capDark: '#7a0d20',
+    skin:    '#f0c490',
+    shirt:   '#3858d8',
+    shirt2:  '#1f3aac',
+    pants:   '#3a2818',
+    boot:    '#1a1410',
+    pack:    '#5e3820',
+  };
 
-  // ===== Head + cap (rows 4-13) — same outline for all directions =====
-  // Outline
-  r(11, 4, 10, 1, PALETTE.outline);
-  r(10, 5, 1, 8, PALETTE.outline);
-  r(21, 5, 1, 8, PALETTE.outline);
-  r(11, 13, 10, 1, PALETTE.outline);
-  // Cap (top half of head)
-  r(11, 5, 10, 4, PALETTE.cap);
-  // Cap brim — small forward-facing tab
-  if (dir === 0)      r(12, 9, 8, 1, PALETTE.capBrim);    // front
-  else if (dir === 3) { /* no brim visible from back */ }
-  else if (dir === 1) r(11, 9, 4, 1, PALETTE.capBrim);    // brim points left
-  else if (dir === 2) r(17, 9, 4, 1, PALETTE.capBrim);    // brim points right
-  // Face skin
-  r(11, 9, 10, 4, PALETTE.skin);
-  // Eyes — only when facing toward viewer or sideways
-  if (dir === 0) {
-    p(13, 11, PALETTE.outline);
-    p(18, 11, PALETTE.outline);
-  } else if (dir === 1) {
-    p(12, 11, PALETTE.outline);
-  } else if (dir === 2) {
-    p(19, 11, PALETTE.outline);
-  }
-  // Hair tuft sneaking out under cap
-  if (dir === 3) {
-    r(13, 9, 6, 1, PALETTE.hair);   // back of head shows hair
-  }
+  // ------------- HEAD seen from above (cap fills most of it) -------------
+  // Cap dome — large rounded shape on the upper half
+  r(11, 4, 10, 1, COL.outline);
+  r(10, 5, 1, 6, COL.outline);
+  r(21, 5, 1, 6, COL.outline);
+  r(11, 11, 10, 1, COL.outline);
+  r(11, 5, 10, 6, COL.cap);
+  // Cap shadow at the rim
+  r(11, 10, 10, 1, COL.capDark);
+  // Forehead/face peeking below the cap
+  r(12, 12, 8, 2, COL.skin);
+  r(11, 12, 1, 2, COL.outline);
+  r(20, 12, 1, 2, COL.outline);
 
-  // ===== Torso (rows 14-22) =====
-  r(10, 14, 12, 1, PALETTE.outline);
-  r(10, 22, 12, 1, PALETTE.outline);
-  r(10, 14, 1, 8, PALETTE.outline);
-  r(21, 14, 1, 8, PALETTE.outline);
-  r(11, 14, 10, 8, PALETTE.shirt);
-  // shirt seam highlight
-  r(11, 21, 10, 1, PALETTE.shirt2);
+  // ------------- TORSO + arms -------------
+  r(10, 14, 12, 1, COL.outline);
+  r(9,  15, 1, 6, COL.outline);
+  r(22, 15, 1, 6, COL.outline);
+  // shoulders fan out wider than head — very top-down feel
+  r(9,  15, 14, 5, COL.shirt);
+  r(9,  20, 14, 1, COL.shirt2);
+  // Backpack strap visible across the shoulders
+  r(13, 15, 6, 1, COL.pack);
 
-  // Backpack — visible from back/side
-  if (dir === 3) {
-    r(12, 15, 8, 6, PALETTE.pack);
-    r(12, 15, 8, 1, PALETTE.outline);
-    r(12, 21, 8, 1, PALETTE.outline);
-  } else if (dir === 1) {
-    r(20, 15, 2, 6, PALETTE.pack);
-  } else if (dir === 2) {
-    r(10, 15, 2, 6, PALETTE.pack);
-  }
+  // Arms — slight swing per frame
+  let armOffL = 0, armOffR = 0;
+  if (frame === 0) { armOffL = +1; armOffR = -1; }   // left forward
+  if (frame === 2) { armOffL = -1; armOffR = +1; }   // right forward
+  r(8,  15 + armOffL, 2, 6, COL.skin);
+  r(8,  15 + armOffL, 2, 1, COL.outline);
+  r(8,  20 + armOffL, 2, 1, COL.outline);
+  r(22, 15 + armOffR, 2, 6, COL.skin);
+  r(22, 15 + armOffR, 2, 1, COL.outline);
+  r(22, 20 + armOffR, 2, 1, COL.outline);
 
-  // ===== Arms (alongside torso) =====
-  // Slight arm swing on walk frames — front/back faces only
-  let armLeftY  = 15;
-  let armRightY = 15;
-  if (dir === 0 || dir === 3) {
-    if (frame === 0) { armLeftY = 16; armRightY = 14; }
-    if (frame === 2) { armLeftY = 14; armRightY = 16; }
-  }
-  r(9,  armLeftY,  2, 5, PALETTE.skin);
-  r(9,  armLeftY,  2, 1, PALETTE.outline);
-  r(9,  armLeftY+5,2, 1, PALETTE.outline);
-  r(21, armRightY, 2, 5, PALETTE.skin);
-  r(21, armRightY, 2, 1, PALETTE.outline);
-  r(21, armRightY+5,2,1, PALETTE.outline);
+  // ------------- LEGS + boots -------------
+  // Step animation: one leg drops further than the other
+  let lLegY = 0, rLegY = 0;
+  if (frame === 0) { lLegY = -1; rLegY = +1; }
+  if (frame === 2) { lLegY = +1; rLegY = -1; }
 
-  // ===== Legs (rows 23-28) =====
-  r(11, 23 + lyA, 4, 5 - lyA, PALETTE.pants);
-  r(17, 23 + lyB, 4, 5 - lyB, PALETTE.pants);
-  // Leg outlines
-  r(11, 23 + lyA, 1, 5 - lyA, PALETTE.outline);
-  r(14, 23 + lyA, 1, 5 - lyA, PALETTE.outline);
-  r(17, 23 + lyB, 1, 5 - lyB, PALETTE.outline);
-  r(20, 23 + lyB, 1, 5 - lyB, PALETTE.outline);
+  r(12, 21, 4, 6 + lLegY, COL.pants);
+  r(16, 21, 4, 6 + rLegY, COL.pants);
+  r(12, 21, 1, 6 + lLegY, COL.outline);
+  r(15, 21, 1, 6 + lLegY, COL.outline);
+  r(16, 21, 1, 6 + rLegY, COL.outline);
+  r(19, 21, 1, 6 + rLegY, COL.outline);
+  r(12, 27 + lLegY, 4, 1, COL.outline);
+  r(16, 27 + rLegY, 4, 1, COL.outline);
 
-  // ===== Boots (row 28) =====
-  r(11, 28 - lyA, 4, 1, PALETTE.boot);
-  r(17, 28 - lyB, 4, 1, PALETTE.boot);
+  // Boots
+  r(12, 26 + lLegY, 4, 1, COL.boot);
+  r(16, 26 + rLegY, 4, 1, COL.boot);
 }
