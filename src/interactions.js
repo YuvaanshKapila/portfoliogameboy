@@ -96,26 +96,33 @@ export function setupInteractions({
 
     e.object.getWorldPosition(_cartWorld);
 
+    // ===== Table floor — never let a cart drop below the desk =====
+    // World Y of the desk surface is 0; cart bottom should rest at
+    // ~cart half-height above that. Apply BEFORE any other Y clamps.
+    const TABLE_REST_Y = 0.045;
+    if (_cartWorld.y < TABLE_REST_Y) {
+      const lift = TABLE_REST_Y - _cartWorld.y;
+      e.object.position.y += lift;
+      _cartWorld.y += lift;
+    }
+
     const insideXZ =
       _cartWorld.x >= gbBox.min.x && _cartWorld.x <= gbBox.max.x &&
       _cartWorld.z >= gbBox.min.z && _cartWorld.z <= gbBox.max.z;
 
     if (!insideXZ) return;
 
-    // Inside the cart-slot zone (small region around the back-top
-    // where the slot is), allow the cart to penetrate HALFWAY into
-    // the body — this is how the user "slides" the cart in toward
-    // the snap. Outside the slot zone, the cart rests on top.
+    // Inside the cart-slot zone, allow halfway-into-body penetration
+    // so the user can slide the cart toward the snap. Outside the
+    // zone, the cart rests on top of the console.
     const inSlotZone =
       Math.abs(_cartWorld.x - slotWorld.x) < 0.30 &&
       _cartWorld.z <= slotWorld.z + 0.20;
 
     let minWorldY;
     if (inSlotZone) {
-      // halfway into the body
       minWorldY = (gbBox.min.y + gbBox.max.y) * 0.5;
     } else {
-      // resting on top
       minWorldY = gbBox.max.y + 0.04;
     }
 
