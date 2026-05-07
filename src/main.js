@@ -7,7 +7,6 @@ import { buildTable } from './scene/table.js';
 import { buildGameBoy } from './scene/gameBoy.js';
 import { buildCartridgeBasket } from './scene/cartridges.js';
 import { buildTradingCards } from './scene/tradingCards.js';
-import { buildSprite, updateSprite } from './scene/sprite.js';
 import { setupInteractions } from './interactions.js';
 
 /* ------------------------------------------------------------------
@@ -126,8 +125,6 @@ let interactions = null;
 let gameBoyRef  = null;
 let cartridgesRef = null;
 let slotAnchorRef = null;
-let spriteRef   = null;
-let cartGroupRef = null;
 
 (async () => {
   if (document.fonts && document.fonts.load) {
@@ -161,17 +158,9 @@ let cartGroupRef = null;
   cartGroup.position.set(-0.85, 0, 0);  // closer to the Game Boy
   scene.add(cartGroup);
   cartridgesRef = cartridges;
-  cartGroupRef = cartGroup;
 
   // Trading cards scattered around the desk for set-dressing
   scene.add(buildTradingCards());
-
-  // Auto-walking pixel-art character on the desk. Placed in the
-  // strip BETWEEN the console's front edge and the desk's front
-  // edge so the Game Boy doesn't occlude it from above.
-  spriteRef = buildSprite();
-  spriteRef.position.set(-0.20, 0.012, 1.25);
-  scene.add(spriteRef);
 
   interactions = setupInteractions({
     scene, camera, renderer, orbit,
@@ -221,12 +210,6 @@ function updateInsertSign() {
 }
 
 /* ---------------- render loop ---------------- */
-// Cached collision boxes for the sprite — recomputed each frame
-// because the Game Boy / basket positions are static so this is
-// cheap, and it keeps the source of truth in one place.
-const _gbAABB     = new THREE.Box3();
-const _basketAABB = new THREE.Box3();
-
 let _lastFrame = performance.now();
 function tick(now) {
   const dt = Math.min((now - _lastFrame) / 1000, 0.05);
@@ -234,25 +217,6 @@ function tick(now) {
   if (interactions) interactions.update(now, dt);
   orbit.update();
   updateInsertSign();
-
-  // Auto-walking sprite — picks its own targets and wanders the desk
-  if (spriteRef && gameBoyRef) {
-    _gbAABB.setFromObject(gameBoyRef);
-    const obstacles = [
-      { min: _gbAABB.min, max: _gbAABB.max },
-    ];
-    if (cartGroupRef) {
-      _basketAABB.setFromObject(cartGroupRef);
-      obstacles.push({ min: _basketAABB.min, max: _basketAABB.max });
-    }
-    // Keep the wanderer in the strip between the console's front
-    // edge (~z=1.0) and the desk edge — that's the only area where
-    // the Game Boy + basket aren't rendering on top of the flat
-    // sprite plane.
-    const bounds = { minX: -1.6, maxX: 1.5, minZ: 1.05, maxZ: 1.85 };
-    updateSprite(spriteRef, dt, obstacles, bounds);
-  }
-
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
