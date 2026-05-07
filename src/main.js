@@ -7,6 +7,7 @@ import { buildTable } from './scene/table.js';
 import { buildGameBoy } from './scene/gameBoy.js';
 import { buildCartridgeBasket } from './scene/cartridges.js';
 import { buildTradingCards } from './scene/tradingCards.js';
+import { buildSprite, updateSprite } from './scene/sprite.js';
 import { setupInteractions } from './interactions.js';
 
 /* ------------------------------------------------------------------
@@ -125,6 +126,29 @@ let interactions = null;
 let gameBoyRef  = null;
 let cartridgesRef = null;
 let slotAnchorRef = null;
+let spriteRef   = null;
+let cartGroupRef = null;
+
+// WASD input state shared with the sprite update loop
+const spriteInput = { up: false, down: false, left: false, right: false };
+window.addEventListener('keydown', (e) => {
+  switch (e.key) {
+    case 'w': case 'W': spriteInput.up = true; break;
+    case 's': case 'S': spriteInput.down = true; break;
+    case 'a': case 'A': // already used by interactions for "open URL"
+      // only treat as movement if not focused on something else
+      spriteInput.left = true; break;
+    case 'd': case 'D': spriteInput.right = true; break;
+  }
+});
+window.addEventListener('keyup', (e) => {
+  switch (e.key) {
+    case 'w': case 'W': spriteInput.up = false; break;
+    case 's': case 'S': spriteInput.down = false; break;
+    case 'a': case 'A': spriteInput.left = false; break;
+    case 'd': case 'D': spriteInput.right = false; break;
+  }
+});
 
 (async () => {
   if (document.fonts && document.fonts.load) {
@@ -158,9 +182,15 @@ let slotAnchorRef = null;
   cartGroup.position.set(-0.85, 0, 0);  // closer to the Game Boy
   scene.add(cartGroup);
   cartridgesRef = cartridges;
+  cartGroupRef = cartGroup;
 
   // Trading cards scattered around the desk for set-dressing
   scene.add(buildTradingCards());
+
+  // Walking pixel-art character on the desk
+  spriteRef = buildSprite();
+  spriteRef.position.set(-0.10, spriteRef.userData.halfH + 0.005, 1.10);
+  scene.add(spriteRef);
 
   interactions = setupInteractions({
     scene, camera, renderer, orbit,
@@ -210,6 +240,12 @@ function updateInsertSign() {
 }
 
 /* ---------------- render loop ---------------- */
+// Cached collision boxes for the sprite — recomputed each frame
+// because the Game Boy / basket positions are static so this is
+// cheap, and it keeps the source of truth in one place.
+const _gbAABB     = new THREE.Box3();
+const _basketAABB = new THREE.Box3();
+
 let _lastFrame = performance.now();
 function tick(now) {
   const dt = Math.min((now - _lastFrame) / 1000, 0.05);
@@ -217,6 +253,22 @@ function tick(now) {
   if (interactions) interactions.update(now, dt);
   orbit.update();
   updateInsertSign();
+
+  // Walking sprite — updated AFTER orbit so the billboard faces the
+  // current camera position.
+  if (spriteRef && gameBoyRef) {
+    _gbAABB.setFromObject(gameBoyRef);
+    const obstacles = [
+      { min: _gbAABB.min, max: _gbAABB.max },
+    ];
+    if (cartGroupRef) {
+      _basketAABB.setFromObject(cartGroupRef);
+      obstacles.push({ min: _basketAABB.min, max: _basketAABB.max });
+    }
+    const bounds = { minX: -3.0, maxX: 3.0, minZ: -1.6, maxZ: 1.8 };
+    updateSprite(spriteRef, dt, spriteInput, camera, obstacles, bounds);
+  }
+
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
