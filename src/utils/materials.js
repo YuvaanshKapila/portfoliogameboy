@@ -225,9 +225,17 @@ export const CART_VISIBLE_LINES = 7;
 export function getCartContent(title) { return CART_CONTENT[title] || null; }
 
 export function makeCartridgeScreenMaterial(title, scrollOffset = 0, selection = 0) {
+  // 2x supersampled canvas — internally 2048², drawn at the original
+  // 1024 logical-coord layout via ctx.scale(2,2). Doubles the actual
+  // texel density of the LCD content without touching any layout
+  // numbers downstream. Significantly sharper text at any zoom.
   const c = document.createElement('canvas');
-  c.width = 1024; c.height = 1024;
+  c.width = 2048; c.height = 2048;
   const ctx = c.getContext('2d');
+  ctx.scale(2, 2);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  if ('textRendering' in ctx) ctx.textRendering = 'optimizeLegibility';
 
   // bright LCD background
   const bg = ctx.createLinearGradient(0, 0, 0, 1024);
@@ -267,7 +275,13 @@ export function makeCartridgeScreenMaterial(title, scrollOffset = 0, selection =
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  // Highest-quality sampling for the cart-screen text: max anisotropy
+  // + trilinear mipmaps. Combined with the 2x supersampled canvas
+  // above, the text stays sharp at any camera distance / angle.
+  tex.anisotropy = 16;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
 
   return new THREE.MeshStandardMaterial({
     map: tex,

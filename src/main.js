@@ -76,7 +76,10 @@ const IS_MOBILE =
 const camDist  = IS_MOBILE ? 8.0 : 4.6;
 const camPolar = THREE.MathUtils.degToRad(13);
 const camAzim  = THREE.MathUtils.degToRad(0);
-const camTarget = new THREE.Vector3(-0.30, 0.15, 0);
+// On mobile, shift the focal point to the right so the Game Boy
+// (which sits at +X) takes more of the frame and the basket fades
+// into the left edge.
+const camTarget = new THREE.Vector3(IS_MOBILE ? 0.25 : -0.30, 0.15, 0);
 
 // Position is camTarget + spherical offset so the camera looks AT
 // camTarget instead of the world origin.
