@@ -72,7 +72,9 @@ const IS_MOBILE =
   );
 
 // Initial camera: straight on, centered on the scene midpoint.
-const camDist  = IS_MOBILE ? 8.0 : 5.2;
+// Pulled back further on mobile so phone users see the whole scene
+// without needing to pinch-zoom on first load.
+const camDist  = IS_MOBILE ? 10.0 : 5.8;
 const camPolar = THREE.MathUtils.degToRad(13);
 const camAzim  = THREE.MathUtils.degToRad(0);
 const camTarget = new THREE.Vector3(-0.30, 0.15, 0);
@@ -142,15 +144,15 @@ let slotAnchorRef = null;
   }
 
   const gameBoy = buildGameBoy();
-  gameBoy.scale.setScalar(1.45);     // bigger overall
-  gameBoy.position.set(0.40, 0, 0);
+  gameBoy.scale.setScalar(1.65);     // bigger so text reads easily
+  gameBoy.position.set(0.30, 0, 0);
   scene.add(gameBoy);
   gameBoyRef = gameBoy;
   slotAnchorRef = gameBoy.getObjectByName('cart-slot-anchor');
 
   const { group: cartGroup, cartridges } = buildCartridgeBasket();
-  cartGroup.scale.setScalar(1.10);
-  cartGroup.position.set(-1.10, 0, 0);
+  cartGroup.scale.setScalar(1.30);
+  cartGroup.position.set(-0.85, 0, 0);  // closer to the Game Boy
   scene.add(cartGroup);
   cartridgesRef = cartridges;
 
