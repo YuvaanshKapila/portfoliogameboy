@@ -15,6 +15,22 @@
 </head>
 <body>
   <canvas id="stage"></canvas>
+
+  <!-- Mobile-only landing modal: dim overlay with a heads-up that
+       the experience is tuned for desktop. Hidden on desktop via CSS. -->
+  <div id="mobile-warning" class="mobile-warning">
+    <div class="mobile-warning-card">
+      <div class="mobile-warning-title">heads up</div>
+      <div class="mobile-warning-body">
+        this experience is best on PC.<br/>
+        do you want to continue?
+      </div>
+      <button id="mobile-warning-continue" class="mobile-warning-btn" type="button">
+        continue
+      </button>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

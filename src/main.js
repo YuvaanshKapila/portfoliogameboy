@@ -73,6 +73,17 @@ const IS_MOBILE =
     /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   );
 
+// Mobile-only "best on PC" landing modal. Shown once at boot; dismiss
+// with the continue button.
+if (IS_MOBILE) {
+  const modal = document.getElementById('mobile-warning');
+  const btn   = document.getElementById('mobile-warning-continue');
+  if (modal && btn) {
+    modal.classList.add('is-open');
+    btn.addEventListener('click', () => modal.classList.remove('is-open'));
+  }
+}
+
 // Initial camera: straight on, centered on the scene midpoint.
 // Mobile: only slightly further than desktop so the LCD reads.
 const camDist  = IS_MOBILE ? 8.0 : 4.6;

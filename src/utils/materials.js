@@ -30,13 +30,7 @@ const F_DISPLAY  = '"Lilita One", "Bowlby One", "Cooper Std", "Arial Black", san
 function makeDecalMaterial(canvas, { roughness = 0.65 } = {}) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  // No mipmaps — mip downsampling averages dark text with the light
-  // sticker background, which is exactly why the cart labels and
-  // GameBoy-face text faded out as the camera dollied back.
-  tex.generateMipmaps = false;
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 8;
   return new THREE.MeshStandardMaterial({
     map: tex,
     transparent: true,
@@ -281,14 +275,13 @@ export function makeCartridgeScreenMaterial(title, scrollOffset = 0, selection =
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  // No mipmaps — mip downsampling was averaging the dark LCD text
-  // with the light screen background, making it fade out as the
-  // camera moved away. LinearFilter samples the full-res canvas
-  // every frame so the contrast stays constant at any distance.
+  // Highest-quality sampling for the cart-screen text: max anisotropy
+  // + trilinear mipmaps. Combined with the 2x supersampled canvas
+  // above, the text stays sharp at any camera distance / angle.
   tex.anisotropy = 16;
-  tex.generateMipmaps = false;
-  tex.minFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
 
   return new THREE.MeshStandardMaterial({
     map: tex,
@@ -534,10 +527,7 @@ export function makeBootScreenMaterial() {
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  tex.generateMipmaps = false;
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 8;
 
   return new THREE.MeshStandardMaterial({
     map: tex,
@@ -587,10 +577,7 @@ export function makeScreenMaterial() {
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  tex.generateMipmaps = false;
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 8;
 
   return new THREE.MeshStandardMaterial({
     map: tex,
@@ -785,17 +772,11 @@ export function makePowerIndicatorMaterial() {
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
-  tex.generateMipmaps = false;
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 8;
 
   const emTex = new THREE.CanvasTexture(ec);
   emTex.colorSpace = THREE.SRGBColorSpace;
-  emTex.anisotropy = 16;
-  emTex.generateMipmaps = false;
-  emTex.minFilter = THREE.LinearFilter;
-  emTex.magFilter = THREE.LinearFilter;
+  emTex.anisotropy = 8;
 
   return new THREE.MeshStandardMaterial({
     map: tex,
