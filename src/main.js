@@ -7,6 +7,7 @@ import { buildTable } from './scene/table.js';
 import { buildGameBoy } from './scene/gameBoy.js';
 import { buildCartridgeBasket } from './scene/cartridges.js';
 import { buildTradingCards } from './scene/tradingCards.js';
+import { buildTableSketches } from './scene/sketches.js';
 import { setupInteractions } from './interactions.js';
 
 /* ------------------------------------------------------------------
@@ -80,7 +81,9 @@ const camAzim  = THREE.MathUtils.degToRad(0);
 // On mobile, shift the focal point to the right so the Game Boy
 // (which sits at +X) takes more of the frame and the basket fades
 // into the left edge.
-const camTarget = new THREE.Vector3(IS_MOBILE ? 0.05 : -0.30, 0.15, 0);
+// Centered between basket (X=-0.85) and Game Boy right edge (X≈+0.95)
+// so the whole composition sits dead-center at any aspect ratio.
+const camTarget = new THREE.Vector3(0.05, 0.15, 0);
 
 // Position is camTarget + spherical offset so the camera looks AT
 // camTarget instead of the world origin.
@@ -99,7 +102,10 @@ orbit.dampingFactor = 0.06;
 // adjustments are allowed.
 // Wider zoom range on mobile so pinch-to-zoom is usable.
 orbit.minDistance = IS_MOBILE ? 2.5 : 3.4;
-orbit.maxDistance = IS_MOBILE ? 14   : 6.5;
+// maxDistance must be generous so applyCamFraming() can dolly back
+// far enough to fit the whole scene on narrow / portrait viewports
+// without being clamped.
+orbit.maxDistance = IS_MOBILE ? 22   : 18;
 orbit.enableZoom  = true;        // mouse wheel + pinch-to-zoom
 orbit.zoomSpeed   = IS_MOBILE ? 1.6 : 1.0;
 // Two-finger touch on mobile = dolly (pinch zoom).
@@ -125,6 +131,7 @@ let interactions = null;
 let gameBoyRef  = null;
 let cartridgesRef = null;
 let slotAnchorRef = null;
+let sketchesRef = null;
 
 (async () => {
   if (document.fonts && document.fonts.load) {
@@ -141,6 +148,8 @@ let slotAnchorRef = null;
         document.fonts.load('700 76px "Jost"'),
         document.fonts.load('700 60px "Jost"'),
         document.fonts.load('600 48px "Jost"'),
+        document.fonts.load('700 120px "Kalam"'),
+        document.fonts.load('700 100px "Caveat"'),
       ]);
       await document.fonts.ready;
     } catch (_) {}
@@ -162,6 +171,11 @@ let slotAnchorRef = null;
   // Trading cards scattered around the desk for set-dressing
   scene.add(buildTradingCards());
 
+  // Pencil-sketch arrows etched onto the desk pointing at the cart
+  // basket, the slot, and the buttons. Fades out once a cart is in.
+  sketchesRef = buildTableSketches();
+  scene.add(sketchesRef);
+
   interactions = setupInteractions({
     scene, camera, renderer, orbit,
     gameBoy, cartridges,
@@ -171,42 +185,79 @@ let slotAnchorRef = null;
 /* ------------------------------------------------------------------
    Resize + tick
    ------------------------------------------------------------------ */
+// Frame the scene to fit any viewport size. We have a known bounding
+// box of all the interesting stuff (basket on the left, cards on the
+// right, Game Boy in the middle). Compute the camera distance that
+// makes that box exactly fit the current viewport — both horizontal
+// AND vertical — and pick the larger so nothing clips.
+//
+// SCENE_HALF_W: half-width  of the content along world X
+// SCENE_HALF_H: half-height of the content along world Z
+//
+// We INTENTIONALLY undersize this so the camera frames the Game Boy
+// + basket nicely. Side trading cards and far sketches can clip a
+// tiny bit on extreme aspect ratios — that's better than a tiny
+// zoomed-out scene where the Game Boy is unreadable.
+const SCENE_HALF_W = 2.1;   // includes inner cards on each side
+const SCENE_HALF_H = 1.65;  // back sketches + front buttons hint
+const FIT_PADDING  = 1.18;  // slightly more breathing room on full screen
+const _camOffset   = new THREE.Vector3();
+
+function applyCamFraming() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const aspect = w / h;
+  const vFovRad = THREE.MathUtils.degToRad(camera.fov);
+
+  // Distance needed to fit the half-height vertically.
+  const distForH = SCENE_HALF_H / Math.tan(vFovRad / 2);
+  // Distance needed to fit the half-width horizontally — horizontal
+  // FOV depends on aspect.
+  const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
+  const distForW = SCENE_HALF_W / Math.tan(hFovRad / 2);
+
+  // Take whichever is more demanding so nothing gets cropped.
+  let newDist = Math.max(distForH, distForW) * FIT_PADDING;
+  newDist = THREE.MathUtils.clamp(newDist, orbit.minDistance, orbit.maxDistance);
+
+  _camOffset.copy(camera.position).sub(orbit.target);
+  _camOffset.setLength(newDist);
+  camera.position.copy(orbit.target).add(_camOffset);
+  camera.updateProjectionMatrix();
+}
+
 function onResize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  applyCamFraming();
 }
 window.addEventListener('resize', onResize);
 onResize();
 
-/* ---------------- "INSERT HERE" sign tracking ---------------- */
-const signEl = document.getElementById('insert-sign');
-const _signWorld = new THREE.Vector3();
-const _signProj  = new THREE.Vector3();
-
-function updateInsertSign() {
-  if (!signEl || !slotAnchorRef) return;
-
-  // Hide once any cart is inserted
-  if (cartridgesRef && cartridgesRef.some(c => c.userData.snapped)) {
-    signEl.style.display = 'none';
-    return;
+/* ---------------- Sketch fade-out ----------------
+   The pencil sketches sit on the desk. Once the user has snapped a
+   cart into the slot they've clearly figured the controls out, so
+   fade the sketches away over ~1s.
+*/
+let sketchFade = 1;
+function updateSketches(dt) {
+  if (!sketchesRef) return;
+  const anySnapped = cartridgesRef && cartridgesRef.some(c => c.userData.snapped);
+  const target = anySnapped ? 0 : 1;
+  if (sketchFade !== target) {
+    const speed = 1.0;   // 1.0 → ~1s fade
+    sketchFade += Math.sign(target - sketchFade) * Math.min(speed * dt, Math.abs(target - sketchFade));
+    for (const m of sketchesRef.children) {
+      if (m.material) {
+        m.material.opacity = sketchFade;
+        m.material.transparent = true;
+      }
+      m.visible = sketchFade > 0.01;
+    }
   }
-
-  slotAnchorRef.getWorldPosition(_signWorld);
-  // bump the sign up a bit so it floats ABOVE the slot
-  _signWorld.y += 0.45;
-
-  _signProj.copy(_signWorld).project(camera);
-
-  // Behind the camera? hide
-  if (_signProj.z > 1) { signEl.style.display = 'none'; return; }
-
-  signEl.style.display = '';
-  signEl.style.left = ((_signProj.x * 0.5 + 0.5) * window.innerWidth)  + 'px';
-  signEl.style.top  = ((-_signProj.y * 0.5 + 0.5) * window.innerHeight) + 'px';
 }
 
 /* ---------------- render loop ---------------- */
@@ -216,7 +267,7 @@ function tick(now) {
   _lastFrame = now;
   if (interactions) interactions.update(now, dt);
   orbit.update();
-  updateInsertSign();
+  updateSketches(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }

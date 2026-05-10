@@ -32,18 +32,24 @@ export function buildTradingCards() {
   // Scatter pattern — a small fan on each side of the scene.
   // Random-feeling positions but deterministic so they don't shuffle
   // every reload.
+  // Scattered to the LEFT and RIGHT sides only — the front strip of
+  // the desk is reserved for the "click here!" sketch, and the bottom
+  // pair of cards previously cluttered that area.
+  // Scattered all around the scene — left, right, top (back), bottom (front).
   const layouts = [
-    // RIGHT side of the desk (past the Game Boy)
-    { x:  1.85, z: -0.55, ry:  0.45, dy: 0 },
-    { x:  1.65, z: -0.20, ry:  0.20, dy: cardH * 1.2 },
-    { x:  1.95, z:  0.30, ry: -0.30, dy: 0 },
-    { x:  1.75, z:  0.85, ry:  0.55, dy: cardH * 1.4 },
-    // LEFT-BACK of the desk (behind the cart basket)
-    { x: -2.20, z: -0.95, ry:  0.10, dy: 0 },
-    { x: -1.95, z: -0.55, ry: -0.35, dy: cardH * 1.2 },
-    // BOTTOM-FRONT of the desk
-    { x: -0.50, z:  1.55, ry:  0.05, dy: 0 },
-    { x:  0.60, z:  1.65, ry: -0.40, dy: cardH * 1.1 },
+    // RIGHT side — tucked close to the Game Boy
+    { x:  1.30, z: -0.40, ry:  0.45, dy: 0 },
+    { x:  1.40, z:  0.40, ry: -0.30, dy: cardH * 1.2 },
+    // LEFT side — tucked close to the basket
+    { x: -1.55, z: -0.45, ry:  0.10, dy: 0 },
+    { x: -1.50, z:  0.55, ry: -0.35, dy: cardH * 1.2 },
+    // TOP (back of desk)
+    { x: -0.30, z: -1.85, ry:  0.20, dy: 0 },
+    { x:  1.05, z: -1.75, ry: -0.45, dy: cardH * 1.3 },
+    // BOTTOM (front of desk)
+    { x: -0.95, z:  1.65, ry: -0.30, dy: 0 },
+    { x:  1.20, z:  1.70, ry:  0.40, dy: cardH * 1.4 },
+    { x:  0.10, z:  1.95, ry:  0.15, dy: 0 },
   ];
 
   for (let i = 0; i < layouts.length; i++) {

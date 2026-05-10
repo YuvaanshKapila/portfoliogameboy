@@ -81,3 +81,107 @@ body {
   0%, 100% { transform: translate(-50%, -110%); }
   50%      { transform: translate(-50%, calc(-110% - 10px)); }
 }
+
+/* ----------------------------------------------------------------------
+   Cartoony pointer signs (cartridges + buttons). Same DOM-projected
+   pattern as .insert-sign — updated every frame in main.js.
+   ---------------------------------------------------------------------- */
+.toon-sign {
+  position: fixed;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 100;
+  text-align: center;
+  font-family: "Comic Sans MS", "Chalkboard SE", "Comic Neue", "Lilita One", cursive, sans-serif;
+  display: none;
+  will-change: transform, left, top;
+}
+.toon-sign-text {
+  display: inline-block;
+  font-size: clamp(13px, 1.9vmin, 22px);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+  color: #1a1410;
+  background: #fff2a8;
+  border: clamp(2px, 0.35vmin, 3px) solid #1a1410;
+  border-radius: clamp(8px, 1.2vmin, 14px);
+  padding: clamp(4px, 0.7vmin, 8px) clamp(7px, 1.2vmin, 13px);
+  box-shadow: clamp(2px, 0.4vmin, 4px) clamp(2px, 0.4vmin, 4px) 0 #1a1410;
+  text-shadow: 1px 1px 0 #fff8d0;
+  white-space: nowrap;
+}
+.toon-sign-arrow {
+  font-size: clamp(26px, 3.6vmin, 44px);
+  line-height: 1;
+  color: #ffd23f;
+  text-shadow:
+    1.5px 0 0 #1a1410, -1.5px 0 0 #1a1410,
+    0 1.5px 0 #1a1410, 0 -1.5px 0 #1a1410,
+    2.5px 2.5px 0 #1a1410;
+}
+
+/* Variant: cartridge sign — arrow points DOWN from text to target below */
+.toon-sign.toon-cart {
+  transform: translate(-50%, -100%);
+  animation: toon-bob-down 1.4s ease-in-out infinite;
+}
+.toon-sign.toon-cart .toon-sign-arrow { margin-top: 2px; }
+
+/* Variant: buttons sign — arrow points LEFT from text on the right side */
+.toon-sign.toon-buttons {
+  transform: translate(8%, -50%);
+  animation: toon-wiggle 1.6s ease-in-out infinite;
+}
+.toon-sign.toon-buttons .toon-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 0.8vmin, 10px);
+}
+.toon-sign.toon-buttons .toon-sign-arrow {
+  font-size: clamp(28px, 4vmin, 48px);
+}
+
+@keyframes toon-bob-down {
+  0%, 100% { transform: translate(-50%, -100%); }
+  50%      { transform: translate(-50%, calc(-100% - 8px)); }
+}
+@keyframes toon-wiggle {
+  0%, 100% { transform: translate(8%, -50%) rotate(0deg); }
+  50%      { transform: translate(calc(8% + 8px), -50%) rotate(-2deg); }
+}
+
+/* ----------------------------------------------------------------------
+   iOS-only fixes. Android/desktop CSS is untouched.
+   `@supports (-webkit-touch-callout: none)` matches Mobile Safari and
+   every iOS WebKit-wrapped browser, and nothing else. iOS handles
+   font smoothing, font synthesis, and color management differently
+   from Android Chrome — those differences are what made fonts look
+   heavier and colors look darker on iPhone.
+   ---------------------------------------------------------------------- */
+@supports (-webkit-touch-callout: none) {
+  /* Pin the document to light color-scheme so iOS Safari does not
+     apply its dark-mode auto-darkening pass to text or the canvas. */
+  html, body {
+    color-scheme: only light;
+  }
+  body {
+    /* Android Chrome uses subpixel by default; iOS defaults to
+       greyscale `antialiased` which over-thins glyphs. Match Android. */
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: geometricPrecision;
+    /* Don't synthesize bold/italic — iOS does this aggressively when
+       a weight is missing, producing the heavier look on iPhone. */
+    font-synthesis: none;
+    -webkit-text-size-adjust: 100%;
+    /* iOS sometimes applies a tap-highlight tint that bleeds onto
+       fixed-position text. Kill it. */
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Same for the canvas — keep iOS's color management out of the way
+     so the WebGL output matches what Android Chrome shows. */
+  #stage {
+    color-scheme: only light;
+  }
+}
