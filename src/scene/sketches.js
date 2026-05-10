@@ -56,7 +56,11 @@ function makeSketchPlane({ label, arrowKind, width, height, labelBelow = false }
   // No-arrow sketches center the label vertically; arrow sketches
   // push the label to one side to leave room for the arrow.
   const labelCentered = arrowKind === 'none';
-  const PX_PER_UNIT = 800;
+  // Lower resolution = each stroke covers more texels relative to
+  // the canvas. When the plane shrinks on screen, bilinear filtering
+  // still blends mostly-ink samples instead of mostly-transparent
+  // ones, so the strokes don't fade out at distance.
+  const PX_PER_UNIT = 320;
   const W = Math.round(width  * PX_PER_UNIT);
   const H = Math.round(height * PX_PER_UNIT);
   const c = document.createElement('canvas');
@@ -68,8 +72,10 @@ function makeSketchPlane({ label, arrowKind, width, height, labelBelow = false }
   // Alpha is low (~0.55) and we use 'source-over' on a transparent
   // background so the wood texture shows through where ink isn't.
   ctx.clearRect(0, 0, W, H);
-  // Black graphite ink — strong and readable on the wood.
-  const ink = 'rgba(8, 6, 4, 0.92)';
+  // Fully opaque graphite ink — any transparency would get blended
+  // toward the wood at distance through bilinear filtering, washing
+  // the strokes out. Solid ink stays solid at every camera distance.
+  const ink = '#080604';
   ctx.strokeStyle = ink;
   ctx.fillStyle   = ink;
 
@@ -79,11 +85,13 @@ function makeSketchPlane({ label, arrowKind, width, height, labelBelow = false }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 16;
+  // Premultiplied alpha so the dark ink doesn't get blended toward
+  // white during bilinear interpolation between texels (the standard
+  // straight-alpha cause of "fading at distance" with dark sprites).
+  tex.premultiplyAlpha = true;
   // Disable mipmaps so the pencil strokes don't fade out as the
-  // camera dollies back. With mipmaps, lower-res levels average the
-  // dark ink with the transparent pixels around it, washing the
-  // strokes to almost nothing at distance. LinearFilter on both
-  // min and mag samples the full-resolution canvas every frame.
+  // camera dollies back. LinearFilter on both min and mag samples
+  // the full-resolution canvas every frame.
   tex.generateMipmaps = false;
   tex.minFilter = THREE.LinearFilter;
   tex.magFilter = THREE.LinearFilter;
@@ -95,6 +103,10 @@ function makeSketchPlane({ label, arrowKind, width, height, labelBelow = false }
   const mat = new THREE.MeshBasicMaterial({
     map: tex,
     transparent: true,
+    // Match the texture's premultiplied alpha so blending uses the
+    // straight `src + (1-srcA)*dst` formula instead of the default
+    // `srcA*src + (1-srcA)*dst` (which dims dark colors).
+    premultipliedAlpha: true,
     depthWrite: false,
     opacity: 1,
     polygonOffset: true,
