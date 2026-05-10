@@ -79,6 +79,14 @@ function makeSketchPlane({ label, arrowKind, width, height, labelBelow = false }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 16;
+  // Disable mipmaps so the pencil strokes don't fade out as the
+  // camera dollies back. With mipmaps, lower-res levels average the
+  // dark ink with the transparent pixels around it, washing the
+  // strokes to almost nothing at distance. LinearFilter on both
+  // min and mag samples the full-resolution canvas every frame.
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
 
   // Standard alpha blend — faint warm strokes over the wood. No dark
