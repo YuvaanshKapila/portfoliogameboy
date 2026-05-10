@@ -114,25 +114,25 @@ function makeSketchPlane({ label, arrowKind, width, height, labelBelow = false }
 function jitter(amount) { return (Math.random() - 0.5) * amount; }
 
 function sketchyLine(ctx, x1, y1, x2, y2, opts = {}) {
-  const passes = opts.passes ?? 2;
+  // Single pass — multi-pass full-opacity overdraw was making lines
+  // darker when zoomed in. One pass renders consistently at any
+  // camera distance.
   const wobble = opts.wobble ?? 1.8;
   const width  = opts.width  ?? 4;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  for (let p = 0; p < passes; p++) {
-    ctx.beginPath();
-    ctx.lineWidth = width + jitter(0.6);
-    const segs = 14;
-    ctx.moveTo(x1 + jitter(wobble), y1 + jitter(wobble));
-    for (let i = 1; i <= segs; i++) {
-      const t = i / segs;
-      ctx.lineTo(
-        x1 + (x2 - x1) * t + jitter(wobble),
-        y1 + (y2 - y1) * t + jitter(wobble),
-      );
-    }
-    ctx.stroke();
+  ctx.beginPath();
+  ctx.lineWidth = width;
+  const segs = 14;
+  ctx.moveTo(x1 + jitter(wobble), y1 + jitter(wobble));
+  for (let i = 1; i <= segs; i++) {
+    const t = i / segs;
+    ctx.lineTo(
+      x1 + (x2 - x1) * t + jitter(wobble),
+      y1 + (y2 - y1) * t + jitter(wobble),
+    );
   }
+  ctx.stroke();
 }
 
 function arrowHead(ctx, tipX, tipY, angle, headLen = 40) {
@@ -197,12 +197,10 @@ function drawLabel(ctx, text, W, H, labelBelow, labelCentered = false) {
   ctx.rotate(jitter(0.025));
   ctx.translate(-x, -y);
 
-  // Two soft passes — gives a slightly etched feel without darkening
-  // the strokes (which would re-introduce the harsh outline).
-  for (let p = 0; p < 3; p++) {
-    ctx.globalAlpha = 0.5;
-    ctx.fillText(text, x + jitter(1.8), y + jitter(1.8));
-  }
+  // Single full-opacity pass. Multi-pass overlapping at half alpha
+  // made the text get DARKER when the camera was close (more
+  // overdraw per screen pixel) and lighter when far. One solid pass
+  // renders identically at every camera distance.
   ctx.globalAlpha = 1;
   ctx.fillText(text, x, y);
   ctx.restore();

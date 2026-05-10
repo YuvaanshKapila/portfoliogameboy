@@ -148,6 +148,9 @@ export function setupInteractions({
       e.object.userData.physicsActive = false;
       // Show this cart's content on the LCD
       showCartContent(e.object);
+      // Auto-power-on if the console is off — matches the
+      // tap-to-insert behavior so every snap-in flow boots the LCD.
+      if (!isBooted) setTimeout(() => powerOn(), 250);
     } else {
       e.object.userData.snapped = false;
       // initialize velocity & enable gravity so the cart falls
