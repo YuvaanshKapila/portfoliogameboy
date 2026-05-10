@@ -198,9 +198,11 @@ let sketchesRef = null;
 // + basket nicely. Side trading cards and far sketches can clip a
 // tiny bit on extreme aspect ratios — that's better than a tiny
 // zoomed-out scene where the Game Boy is unreadable.
-const SCENE_HALF_W = 2.1;   // includes inner cards on each side
-const SCENE_HALF_H = 1.65;  // back sketches + front buttons hint
-const FIT_PADDING  = 1.18;  // slightly more breathing room on full screen
+// Tighter bounds on mobile so portrait viewports don't dolly the
+// camera way back. Desktop keeps the comfortable framing.
+const SCENE_HALF_W = IS_MOBILE ? 1.25 : 2.1;
+const SCENE_HALF_H = IS_MOBILE ? 1.10 : 1.65;
+const FIT_PADDING  = IS_MOBILE ? 1.00 : 1.18;
 const _camOffset   = new THREE.Vector3();
 
 function applyCamFraming() {
