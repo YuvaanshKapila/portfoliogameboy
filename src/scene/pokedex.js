@@ -498,11 +498,21 @@ export function buildPokedex() {
   let cardPool = [];
   function setCards(cards) { cardPool = cards || []; }
 
+  // Monotonically incrementing generation token. Each scan() call
+  // captures the current value; any await that resumes with a stale
+  // token aborts. This prevents spam-click races where multiple
+  // overlapping scans would play audio + draw on top of each other.
+  let scanGen = 0;
+
   async function scan(card) {
     if (!card) return;
     if (!root.userData.isOpen) return;
 
+    // Cancel everything from prior scans
     stopAudio();
+    stopSfx();
+
+    const gen = ++scanGen;
     currentCardId = card.id;
 
     // 1) Pokédex SFX plays FIRST — every scan, every time.
@@ -511,17 +521,18 @@ export function buildPokedex() {
     // 2) Meanwhile, load the photo and render the screen so it's
     //    ready by the time the SFX finishes.
     const img = await loadPhoto(card.image);
-    if (currentCardId !== card.id) return;
+    if (gen !== scanGen) return;            // a newer scan superseded us
+    if (!root.userData.isOpen) return;
     drawCardScreen(bigScreenCanvas, card, img);
     bigScreenTex.needsUpdate = true;
 
     // 3) Wait for the SFX to finish, then play the voice line.
     await sfxDone;
-    // Card may have been swapped or pokédex closed during the SFX
-    if (currentCardId !== card.id) return;
+    if (gen !== scanGen) return;            // superseded during the SFX wait
     if (!root.userData.isOpen) return;
 
     try {
+      stopAudio();                          // safety — kill any stragglers
       currentAudio = new Audio(card.audio);
       currentAudio.volume = VOICE_VOLUME;
       currentAudio.play().catch(() => {});
@@ -530,6 +541,8 @@ export function buildPokedex() {
 
   function clearScan() {
     stopAudio();
+    stopSfx();
+    scanGen++;   // invalidate any in-flight scans
     currentCardId = null;
     drawIdleScreen(bigScreenCanvas);
     bigScreenTex.needsUpdate = true;
