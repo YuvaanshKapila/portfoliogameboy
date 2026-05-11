@@ -8,7 +8,9 @@ import { buildGameBoy } from './scene/gameBoy.js';
 import { buildCartridgeBasket } from './scene/cartridges.js';
 import { buildTradingCards } from './scene/tradingCards.js';
 import { buildTableSketches } from './scene/sketches.js';
+import { buildPokedex } from './scene/pokedex.js';
 import { setupInteractions } from './interactions.js';
+import { CARDS, getCardById } from './cardData.js';
 
 /* ------------------------------------------------------------------
    Renderer
@@ -117,8 +119,13 @@ orbit.minDistance = IS_MOBILE ? 2.5 : 3.4;
 // far enough to fit the whole scene on narrow / portrait viewports
 // without being clamped.
 orbit.maxDistance = IS_MOBILE ? 22   : 18;
-orbit.enableZoom  = true;        // mouse wheel + pinch-to-zoom
-orbit.zoomSpeed   = IS_MOBILE ? 1.6 : 1.0;
+// Zoom is enabled on both mobile and desktop. On desktop, zoom-IN
+// is allowed (mouse wheel toward the scene) but zoom-OUT is
+// clamped to the curated default framing — applyCamFraming() sets
+// orbit.maxDistance to the framing distance on each resize so the
+// user can never dolly past the original composition.
+orbit.enableZoom  = true;
+orbit.zoomSpeed   = IS_MOBILE ? 1.6 : 0.8;
 // Two-finger touch on mobile = dolly (pinch zoom).
 // Single-finger = rotate (orbit).
 orbit.touches = {
@@ -143,6 +150,7 @@ let gameBoyRef  = null;
 let cartridgesRef = null;
 let slotAnchorRef = null;
 let sketchesRef = null;
+let pokedexRef = null;   // desktop only — buildPokedex() returns { group, hitTargets, update, setOpen }
 
 (async () => {
   if (document.fonts && document.fonts.load) {
@@ -161,6 +169,9 @@ let sketchesRef = null;
         document.fonts.load('600 48px "Jost"'),
         document.fonts.load('700 120px "Kalam"'),
         document.fonts.load('700 100px "Caveat"'),
+        document.fonts.load('400 32px "Press Start 2P"'),
+        document.fonts.load('400 48px "Press Start 2P"'),
+        document.fonts.load('400 28px "VT323"'),
       ]);
       await document.fonts.ready;
     } catch (_) {}
@@ -180,17 +191,84 @@ let sketchesRef = null;
   cartridgesRef = cartridges;
 
   // Trading cards scattered around the desk for set-dressing
-  scene.add(buildTradingCards());
+  const tradingCardsGroup = buildTradingCards();
+  scene.add(tradingCardsGroup);
 
   // Pencil-sketch arrows etched onto the desk pointing at the cart
   // basket, the slot, and the buttons. Fades out once a cart is in.
   sketchesRef = buildTableSketches();
   scene.add(sketchesRef);
 
+  // Decorative Nintendo e-Reader sitting flat on the top-right of
+  // the desk. Desktop only — hidden on mobile to keep the small
+  // viewport focused on the Game Boy.
+
+  // Iconic Gen 1 anime Pokédex — DESKTOP ONLY. Book-style clamshell
+  // that opens left-to-right. Scaled down so its OPEN footprint
+  // (~0.55 × 0.43 world units) fits the tight gap between the
+  // "use buttons" sketch (back) and the trading cards (front),
+  // clear of the basket (left) and front-center card (right edge).
+  if (!IS_MOBILE) {
+    pokedexRef = buildPokedex();
+    pokedexRef.group.scale.setScalar(2.15);
+    pokedexRef.group.position.set(2.75, 0, 0.40);
+    pokedexRef.group.rotation.y = THREE.MathUtils.degToRad(-28);
+    scene.add(pokedexRef.group);
+
+    pokedexRef.setCards(CARDS);
+  }
+
   interactions = setupInteractions({
     scene, camera, renderer, orbit,
     gameBoy, cartridges,
   });
+
+  // Pokédex click-to-open — desktop only. Raycast on pointerup so
+  // it doesn't fight DragControls / OrbitControls drags.
+  if (pokedexRef) {
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    let downX = 0, downY = 0, downT = 0;
+    canvas.addEventListener('pointerdown', (e) => {
+      downX = e.clientX; downY = e.clientY; downT = performance.now();
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      // ignore drags — only treat as click if the pointer barely
+      // moved and the press was short
+      const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+      if (moved > 6 || performance.now() - downT > 400) return;
+      const rect = canvas.getBoundingClientRect();
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      ray.setFromCamera(ndc, camera);
+
+      // Clicking ANY card or the Pokédex toggles the Pokédex.
+      // When the Pokédex opens it picks a random card to scan,
+      // so the user doesn't pick a specific entry by clicking
+      // a card — every click just summons a new random one.
+      const targets = [];
+      if (tradingCardsGroup) targets.push(...tradingCardsGroup.children);
+      targets.push(...pokedexRef.hitTargets);
+      const hits = ray.intersectObjects(targets, false);
+      if (hits.length === 0) return;
+
+      const hit = hits[0].object;
+      const isCard = !!hit.userData.cardId;
+      const open = pokedexRef.group.userData.isOpen;
+
+      if (isCard) {
+        // Card click: scan THIS specific card. Open the Pokédex
+        // first if closed so the screen is visible.
+        const data = getCardById(hit.userData.cardId);
+        if (!data) return;
+        if (!open) pokedexRef.setOpen(true);
+        pokedexRef.scan(data);
+      } else {
+        // Pokédex body click: toggle open/closed.
+        pokedexRef.setOpen(!open);
+      }
+    });
+  }
 })();
 
 /* ------------------------------------------------------------------
@@ -232,6 +310,14 @@ function applyCamFraming() {
   // Take whichever is more demanding so nothing gets cropped.
   let newDist = Math.max(distForH, distForW) * FIT_PADDING;
   newDist = THREE.MathUtils.clamp(newDist, orbit.minDistance, orbit.maxDistance);
+
+  // Desktop: clamp maxDistance to the current framing distance so
+  // the user can zoom IN closer but never dolly OUT past the
+  // curated framing. Mobile keeps its wider maxDistance so pinch
+  // zoom remains usable in either direction.
+  if (!IS_MOBILE) {
+    orbit.maxDistance = newDist;
+  }
 
   _camOffset.copy(camera.position).sub(orbit.target);
   _camOffset.setLength(newDist);
@@ -279,6 +365,7 @@ function tick(now) {
   const dt = Math.min((now - _lastFrame) / 1000, 0.05);
   _lastFrame = now;
   if (interactions) interactions.update(now, dt);
+  if (pokedexRef) pokedexRef.update(dt);
   orbit.update();
   updateSketches(dt);
   renderer.render(scene, camera);

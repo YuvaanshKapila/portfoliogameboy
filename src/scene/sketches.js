@@ -49,6 +49,23 @@ export function buildTableSketches() {
   buttonsSketch.position.set(0.30, 0.004, 1.20);
   group.add(buttonsSketch);
 
+  // 4) POKEDEX — text-only hint in the gap between the Game Boy
+  //    (X≈0.30) and the Pokédex (X≈2.75). The plane stays flat on
+  //    the desk (rotation.x = -π/2 inside makeSketchPlane); the
+  //    DIAGONAL tilt happens via a wrapping group rotated around
+  //    world Y, which spins the flat plane in place rather than
+  //    lifting an edge off the desk.
+  const pokedexSketch = makeSketchPlane({
+    label: 'click cards to scan',
+    arrowKind: 'none',
+    width: 1.1, height: 0.18,
+  });
+  const pokedexSketchWrap = new THREE.Group();
+  pokedexSketchWrap.add(pokedexSketch);
+  pokedexSketchWrap.position.set(1.65, 0.004, -0.85);
+  pokedexSketchWrap.rotation.y = THREE.MathUtils.degToRad(-38);
+  group.add(pokedexSketchWrap);
+
   return group;
 }
 
