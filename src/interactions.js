@@ -3,6 +3,7 @@ import { DragControls } from 'three/addons/controls/DragControls.js';
 import {
   makeCartridgeScreenMaterial, getCartContent, CART_VISIBLE_LINES,
 } from './utils/materials.js';
+import { getMaster, onMasterChange } from './volume.js';
 
 const CART_URLS = {
   PROJECTS: 'https://github.com/YuvaanshKapila?tab=repositories',
@@ -373,18 +374,24 @@ export function setupInteractions({
   // Real Game Boy Advance startup sound (mp3) — used in place of the
   // synth boot chime when the user powers on. Lazily created on first
   // use so we don't preload audio that may never play.
+  const STARTUP_BASE_VOLUME = 0.32;
   let startupAudio = null;
   function playStartupMp3() {
     try {
       if (!startupAudio) {
         startupAudio = new Audio('/startup.mp3');
         startupAudio.preload = 'auto';
-        startupAudio.volume = 0.55;
       }
+      startupAudio.volume = STARTUP_BASE_VOLUME * getMaster();
       startupAudio.currentTime = 0;
       startupAudio.play().catch(() => {});
     } catch (_) { /* ignore */ }
   }
+  // Live-update the volume if the user moves the slider while
+  // the boot chime is playing.
+  onMasterChange((m) => {
+    if (startupAudio) startupAudio.volume = STARTUP_BASE_VOLUME * m;
+  });
 
   function playBootChime() {
     ensureAudio();

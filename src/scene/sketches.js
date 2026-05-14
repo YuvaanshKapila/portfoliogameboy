@@ -15,7 +15,8 @@ import * as THREE from 'three';
  *
  * Camera looks down ~13° from +Z, so on screen "up" ≈ world -Z.
  */
-export function buildTableSketches() {
+export function buildTableSketches(opts = {}) {
+  const { isMobile = false } = opts;
   const group = new THREE.Group();
   group.name = 'table-sketches';
 
@@ -50,21 +51,20 @@ export function buildTableSketches() {
   group.add(buttonsSketch);
 
   // 4) POKEDEX — text-only hint in the gap between the Game Boy
-  //    (X≈0.30) and the Pokédex (X≈2.75). The plane stays flat on
-  //    the desk (rotation.x = -π/2 inside makeSketchPlane); the
-  //    DIAGONAL tilt happens via a wrapping group rotated around
-  //    world Y, which spins the flat plane in place rather than
-  //    lifting an edge off the desk.
-  const pokedexSketch = makeSketchPlane({
-    label: 'click cards to scan',
-    arrowKind: 'none',
-    width: 1.1, height: 0.18,
-  });
-  const pokedexSketchWrap = new THREE.Group();
-  pokedexSketchWrap.add(pokedexSketch);
-  pokedexSketchWrap.position.set(1.65, 0.004, -0.85);
-  pokedexSketchWrap.rotation.y = THREE.MathUtils.degToRad(-38);
-  group.add(pokedexSketchWrap);
+  //    and the Pokédex. DESKTOP ONLY since the Pokédex itself is
+  //    desktop-only.
+  if (!isMobile) {
+    const pokedexSketch = makeSketchPlane({
+      label: 'click cards to scan',
+      arrowKind: 'none',
+      width: 1.1, height: 0.18,
+    });
+    const pokedexSketchWrap = new THREE.Group();
+    pokedexSketchWrap.add(pokedexSketch);
+    pokedexSketchWrap.position.set(1.65, 0.004, -0.85);
+    pokedexSketchWrap.rotation.y = THREE.MathUtils.degToRad(-38);
+    group.add(pokedexSketchWrap);
+  }
 
   return group;
 }

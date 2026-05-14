@@ -11,6 +11,7 @@ import { buildTableSketches } from './scene/sketches.js';
 import { buildPokedex } from './scene/pokedex.js';
 import { setupInteractions } from './interactions.js';
 import { CARDS, getCardById } from './cardData.js';
+import { getMaster, setMaster } from './volume.js';
 
 /* ------------------------------------------------------------------
    Renderer
@@ -74,6 +75,32 @@ const IS_MOBILE =
     window.matchMedia?.('(max-width: 820px)').matches ||
     /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   );
+
+// Volume widget — click the speaker icon to toggle the slider panel.
+// Slider value drives setMaster() which fans out to every audio
+// source via the master multiplier in volume.js.
+(function wireVolumeWidget() {
+  const toggle = document.getElementById('volume-toggle');
+  const panel  = document.getElementById('volume-panel');
+  const slider = document.getElementById('volume-slider');
+  if (!toggle || !panel || !slider) return;
+
+  slider.value = String(getMaster());
+  slider.addEventListener('input', () => {
+    setMaster(parseFloat(slider.value));
+  });
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('is-open');
+  });
+  // Click outside the widget closes the slider
+  document.addEventListener('pointerdown', (e) => {
+    if (!panel.classList.contains('is-open')) return;
+    if (e.target.closest('.volume-widget')) return;
+    panel.classList.remove('is-open');
+  });
+})();
 
 // Mobile-only "best on PC" landing modal. Shown once at boot; dismiss
 // with the continue button.
@@ -196,7 +223,7 @@ let pokedexRef = null;   // desktop only — buildPokedex() returns { group, hit
 
   // Pencil-sketch arrows etched onto the desk pointing at the cart
   // basket, the slot, and the buttons. Fades out once a cart is in.
-  sketchesRef = buildTableSketches();
+  sketchesRef = buildTableSketches({ isMobile: IS_MOBILE });
   scene.add(sketchesRef);
 
   // Decorative Nintendo e-Reader sitting flat on the top-right of

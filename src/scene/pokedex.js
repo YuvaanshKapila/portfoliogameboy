@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { getMaster, onMasterChange } from '../volume.js';
 
 /**
  * Iconic Gen 1 anime Pokédex — book-style red clamshell.
@@ -425,14 +426,24 @@ export function buildPokedex() {
 
   // Volume settings — voice is quiet, SFX even quieter so the
   // voice line is the focus.
-  const VOICE_VOLUME = 0.35;
-  const STARTUP_SFX_VOLUME = 0.18;
-  const CLICK_SFX_VOLUME = 0.25;
+  // Per-clip base volumes — kept LOW so the master volume slider
+  // can taper from quiet to barely-audible without saturating.
+  // Each play applies the master multiplier on top.
+  const VOICE_VOLUME = 0.22;
+  const STARTUP_SFX_VOLUME = 0.10;
+  const CLICK_SFX_VOLUME = 0.14;
 
   // Single shared audio element so only one voice plays at a time.
   let currentAudio = null;
   let currentSfx = null;
   let currentCardId = null;
+
+  // Re-apply master volume to any audio that's already playing
+  // when the user moves the slider.
+  onMasterChange((m) => {
+    if (currentAudio) currentAudio.volume = VOICE_VOLUME * m;
+    if (currentSfx)   currentSfx.volume   = STARTUP_SFX_VOLUME * m;
+  });
   function stopAudio() {
     if (currentAudio) {
       try { currentAudio.pause(); currentAudio.currentTime = 0; } catch (_) {}
@@ -456,7 +467,7 @@ export function buildPokedex() {
     return new Promise((resolve) => {
       try {
         const a = new Audio(STARTUP_SFX);
-        a.volume = STARTUP_SFX_VOLUME;
+        a.volume = STARTUP_SFX_VOLUME * getMaster();
         currentSfx = a;
         const done = () => {
           if (currentSfx === a) currentSfx = null;
@@ -485,7 +496,7 @@ export function buildPokedex() {
       const gain = audioCtx.createGain();
       osc.type = 'square';
       osc.frequency.value = highPitch ? 1200 : 800;
-      gain.gain.setValueAtTime(CLICK_SFX_VOLUME, t0);
+      gain.gain.setValueAtTime(CLICK_SFX_VOLUME * getMaster(), t0);
       gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
       osc.connect(gain).connect(audioCtx.destination);
       osc.start(t0);
@@ -534,7 +545,7 @@ export function buildPokedex() {
     try {
       stopAudio();                          // safety — kill any stragglers
       currentAudio = new Audio(card.audio);
-      currentAudio.volume = VOICE_VOLUME;
+      currentAudio.volume = VOICE_VOLUME * getMaster();
       currentAudio.play().catch(() => {});
     } catch (_) {}
   }
